@@ -26,7 +26,7 @@ API para gerenciar provas, questões, simulados e certificações.
 
 3\. Ative: `venv\\Scripts\\activate`
 
-4\. Instale dependências: `pip install -r requirements.txt`
+4\. Instale dependências: `python -m pip install -r requirements.txt`
 
 5\. Configure `.env` com sua senha do PostgreSQL
 
