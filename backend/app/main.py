@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import get_db
 from sqlalchemy.orm import Session
 from app import models
+from app.routers.auth import router as auth_router
 
 app = FastAPI(
     title="Sistema de Gestão de Provas - SEED",
@@ -30,3 +31,5 @@ def listar_usuarios(db: Session = Depends(get_db)):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+app.include_router(auth_router)
