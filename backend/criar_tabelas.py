@@ -55,6 +55,59 @@ CREATE TABLE IF NOT EXISTS questoes (
 
 print("✅ Tabela 'questoes' criada/verificada")
 
+### Tabela alternativas ###
+cur.execute("""
+CREATE TABLE IF NOT EXISTS alternativas (
+    id SERIAL PRIMARY KEY,
+    texto TEXT NOT NULL,
+    questao_id INTEGER REFERENCES questoes(id),
+    alternativa_correta BOOLEAN DEFAULT FALSE
+);
+""")
+
+print("✅ Tabela 'alternativas' criada/verificada")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS inscricao (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER REFERENCES usuarios(id),
+    prova_id INTEGER REFERENCES provas(id),
+    data_inscricao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'INSCRITO',
+    presencial BOOLEAN DEFAULT FALSE,
+    pessoaDeficiente BOOLEAN DEFAULT FALSE        
+);
+""") 
+
+print("✅ Tabela 'inscricao' criada/verificada")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS localidade (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    estado VARCHAR(255) NOT NULL,
+    cidade VARCHAR(255) NOT NULL,
+    cep VARCHAR(20) NOT NULL,
+    contato VARCHAR(255) NOT NULL,
+    capacidade INTEGER NOT NULL 
+
+);
+""")
+
+print("✅ Tabela 'localidade' criada/verificada")
+
+cur.execute("""
+CREATE TABLE IF NOT EXISTS respostas (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER REFERENCES inscricao(id),
+    questao_id INTEGER REFERENCES questoes(id),
+    alternativa INTEGER REFERENCES alternativas(id)
+    
+);
+""")
+
+print("✅ Tabela 'respostas' criada/verificada")
+
 conn.commit()
 cur.close()
 conn.close()
