@@ -1,44 +1,74 @@
-\# Squad 32 - Sistema de Gestão de Provas SEED
+Squad 32 - Sistema de Gestão de Provas SEED
+📌 Sobre o Projeto
+API para gerenciar provas, questões, simulados e certificações. Desenvolvido pelo Squad 32 como projeto da Residência em Software.
 
+🛠️ Tecnologias
+Back-end: Python + FastAPI
 
+Banco de Dados: PostgreSQL + PostGIS (geolocalização)
 
-API para gerenciar provas, questões, simulados e certificações.
+Front-end: HTML, CSS, JavaScript puro
 
+ORM: SQLAlchemy
 
+Autenticação: JWT
 
-\## Tecnologias
+🗄️ Banco de Dados – Estrutura e Migrações
+Pré‑requisitos
+PostgreSQL 15+ instalado
 
-\- FastAPI (Python)
+Extensão PostGIS (para geolocalização)
 
-\- PostgreSQL + PostGIS
+1. Criar o banco de dados
+psql -U postgres -c "CREATE DATABASE squad32_seed;"
 
-\- SQLAlchemy
+2. Executar as migrações (criar tabelas)
+Os scripts estão em database/migrations/. Execute em ordem numérica:
 
+Opção A: Manual (Bash)
 
+psql -U postgres -d squad32_seed -f database/migrations/010_usuarios.sql
 
-\## Como executar
+psql -U postgres -d squad32_seed -f database/migrations/020_provas.sql
 
+psql -U postgres -d squad32_seed -f database/migrations/030_questoes.sql
 
+psql -U postgres -d squad32_seed -f database/migrations/040_alternativas.sql
 
-1\. Clone o repositório
+Opção B: Automática (PowerShell - Windows)
+Get-ChildItem database/migrations/*.sql | Sort-Object Name | ForEach-Object { psql -U postgres -d squad32_seed -f $_.FullName }
 
-2\. Crie ambiente virtual: `python -m venv venv`
+🚀 Como executar o projeto
+Back-end (API)
+Acesse a pasta backend: cd backend
 
-3\. Ative: `venv\\Scripts\\activate`
+Crie e ative o ambiente virtual:
 
-4\. Instale dependências: `python -m pip install -r requirements.txt`
+Windows: python -m venv venv e venv\Scripts\activate
 
-5\. Configure `.env` com sua senha do PostgreSQL
+Linux/Mac: python -m venv venv e source venv/bin/activate
 
-6\. Execute: `uvicorn app.main:app --reload`
+Instale as dependências: python -m pip install -r requirements.txt
 
+Configure o .env e execute: uvicorn app.main:app --reload
 
+Front-end
+Abra o arquivo frontend/index.html no navegador.
 
-\## Endpoints principais
+📦 Variáveis de Ambiente (.env)
+Crie o arquivo na pasta /backend:
 
-\- `GET /` - Mensagem de boas-vindas
+DATABASE_URL=postgresql://postgres:sua_senha@localhost:5432/squad32_seed
 
-\- `GET /health` - Health check
+SECRET_KEY=37592
 
-\- `GET /usuarios` - Listar usuários
+ALGORITHM=HS256
 
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+🐛 Solução de Problemas
+psql: command not found: Adicione o PostgreSQL ao PATH do sistema.
+
+FATAL: auth failed: Verifique a senha no arquivo .env.
+
+ModuleNotFoundError: Ative a venv antes de rodar o projeto.
