@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS componente_curricular (
+    
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
