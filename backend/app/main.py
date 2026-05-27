@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Depends  # <-- adicione ", Depends" aqui
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import get_db
+from app.database import get_db, engine
 from sqlalchemy.orm import Session
 from app import models
+models.Base.metadata.create_all(bind=engine)
 from app.routers.auth import router as auth_router
+from app.routers.provas import router as provas_router
 
 app = FastAPI(
     title="Sistema de Gestão de Provas - SEED",
@@ -33,3 +35,5 @@ def health_check():
     return {"status": "ok"}
 
 app.include_router(auth_router)
+
+app.include_router(provas_router)

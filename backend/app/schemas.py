@@ -32,3 +32,28 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     usuario: UsuarioResponse
+
+
+class ProvaCreate(BaseModel):
+    titulo: str
+    descricao: Optional[str] = None
+    nivel: Optional[str] = None
+    serie: Optional[str] = None
+    tipo: Optional[str] = None
+    nota_minima: Optional[float] = None
+    tempo_limite: Optional[int] = None
+
+
+class ProvaResponse(BaseModel):
+    id: int
+    titulo: str
+    descricao: Optional[str]
+    nivel: Optional[str]
+    serie: Optional[str]
+    tipo: Optional[str]
+    nota_minima: Optional[float]
+    tempo_limite: Optional[int]
+    status: str
+
+    class Config:
+        from_attributes = True
