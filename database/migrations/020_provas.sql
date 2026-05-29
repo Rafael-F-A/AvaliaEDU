@@ -10,7 +10,10 @@ CREATE TABLE IF NOT EXISTS provas (
     tempo_limite INTEGER,
     data_inicio DATE,
     data_fim DATE,
+    data_inicio_inscricao TIMESTAMP,
+    data_fim_inscricao TIMESTAMP,
     criado_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+    deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

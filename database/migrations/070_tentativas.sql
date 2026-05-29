@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS tentativas (
     nota DECIMAL(5,2),
     resultado VARCHAR(20) CHECK (resultado IN ('APROVADO', 'REPROVADO')),
     bloqueio_ate DATE,
+    ordem_questoes JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

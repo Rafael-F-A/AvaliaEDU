@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Date
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, JSON, Date
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
 from geoalchemy2 import Geometry
-from sqlalchemy.types import JSON
+
 
 class Usuario(Base):
     __tablename__ = "usuarios"
@@ -25,6 +26,7 @@ class Usuario(Base):
     tentativas = relationship("Tentativa", back_populates="aluno", cascade="all, delete-orphan")
     reservas = relationship("Reserva", back_populates="aluno", cascade="all, delete-orphan")
     certificados = relationship("Certificado", back_populates="aluno")
+
 
 class Prova(Base):
     __tablename__ = "provas"
@@ -49,6 +51,7 @@ class Prova(Base):
     reservas = relationship("Reserva", back_populates="prova")
     certificados = relationship("Certificado", back_populates="prova")
 
+
 class Questao(Base):
     __tablename__ = "questoes"
 
@@ -65,6 +68,7 @@ class Questao(Base):
     alternativas = relationship("Alternativa", back_populates="questao", cascade="all, delete-orphan")
     respostas = relationship("Resposta", back_populates="questao")
 
+
 class Alternativa(Base):
     __tablename__ = "alternativas"
 
@@ -78,6 +82,7 @@ class Alternativa(Base):
     # Relacionamentos
     questao = relationship("Questao", back_populates="alternativas")
     respostas = relationship("Resposta", back_populates="alternativa")
+
 
 class Local(Base):
     __tablename__ = "locais"
@@ -98,6 +103,7 @@ class Local(Base):
     # Relacionamentos
     reservas = relationship("Reserva", back_populates="local", cascade="all, delete-orphan")
 
+
 class Reserva(Base):
     __tablename__ = "reservas"
 
@@ -117,6 +123,7 @@ class Reserva(Base):
     local = relationship("Local", back_populates="reservas")
     prova = relationship("Prova", back_populates="reservas")
 
+
 class Tentativa(Base):
     __tablename__ = "tentativas"
 
@@ -132,14 +139,15 @@ class Tentativa(Base):
     bloqueio_ate = Column(Date)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    ordem_questoes = Column(JSON, nullable=True)  # importar JSON do sqlalchemy.types
+    ordem_questoes = Column(JSON, nullable=True)
+    ordem_alternativas = Column(JSON, nullable=True)
 
     # Relacionamentos
     aluno = relationship("Usuario", back_populates="tentativas")
     prova = relationship("Prova", back_populates="tentativas")
     respostas = relationship("Resposta", back_populates="tentativa", cascade="all, delete-orphan")
     certificado = relationship("Certificado", back_populates="tentativa", uselist=False)
+
 
 class Resposta(Base):
     __tablename__ = "respostas"
@@ -156,18 +164,32 @@ class Resposta(Base):
     questao = relationship("Questao", back_populates="respostas")
     alternativa = relationship("Alternativa", back_populates="respostas")
 
+
 class Certificado(Base):
     __tablename__ = "certificados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    tentativa_id = Column(Integer, ForeignKey("tentativas.id", ondelete="CASCADE"), unique=True, nullable=False)
-    aluno_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
-    prova_id = Column(Integer, ForeignKey("provas.id", ondelete="CASCADE"), nullable=False)
-    codigo_validacao = Column(String(50), unique=True, nullable=False)
+    id = Column(Integer, primary_key=True)
+    tentativa_id = Column(Integer, ForeignKey("tentativas.id"), unique=True, nullable=False)
+    aluno_id = Column(Integer, ForeignKey("usuarios.id"))
+    prova_id = Column(Integer, ForeignKey("provas.id"))
+    codigo_validacao = Column(String(50), unique=True, nullable=False, index=True)
     url_pdf = Column(String(500))
-    data_emissao = Column(DateTime(timezone=True), server_default=func.now())
+    data_emissao = Column(DateTime, default=datetime.utcnow)
+    ativo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relacionamentos
     tentativa = relationship("Tentativa", back_populates="certificado")
     aluno = relationship("Usuario", back_populates="certificados")
     prova = relationship("Prova", back_populates="certificados")
+
+class Auditoria(Base):
+    __tablename__ = "auditoria"
+
+    id = Column(Integer, primary_key=True)
+    usuario_id = Column(Integer)
+    acao = Column(String(100))
+    entidade = Column(String(50))
+    entidade_id = Column(Integer)
+    ip = Column(String(45))
+    user_agent = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
