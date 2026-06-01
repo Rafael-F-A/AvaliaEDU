@@ -18,7 +18,8 @@ def iniciar_simulado(prova_id: int, aluno: models.Usuario, db: Session) -> dict:
     prova = db.query(models.Prova).filter(
         models.Prova.id == prova_id,
         models.Prova.status == "PUBLICADA",
-        models.Prova.deleted == False,
+        models.Prova.tipo == "SIMULADO",
+        models.Prova.deleted == False
     ).first()
 
     if not prova:

@@ -88,6 +88,13 @@ class AlternativaResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class AlternativaPublica(BaseModel):
+    id: int
+    texto: str
+    ordem: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 # Questões
 
 class QuestaoCreate(BaseModel):
@@ -129,7 +136,7 @@ class IniciarSimuladoResponse(BaseModel):
     tentativa_id: int
     questao_id: int
     enunciado: str
-    alternativas: list[AlternativaResponse]
+    alternativas: list[AlternativaPublica]
     questao_numero: int
     total_questoes: int
 
@@ -142,7 +149,7 @@ class ResponderQuestaoResponse(BaseModel):
     finalizado: bool
     proxima_questao_id: Optional[int] = None
     proxima_questao_enunciado: Optional[str] = None
-    proximas_alternativas: Optional[list[AlternativaResponse]] = None
+    proximas_alternativas: Optional[list[AlternativaPublica]] = None
     questao_numero: Optional[int] = None
     total_questoes: Optional[int] = None
     nota_final: Optional[float] = None
