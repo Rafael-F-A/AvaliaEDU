@@ -7,4 +7,5 @@ CREATE TABLE IF NOT EXISTS alternativas (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Índice para buscas por questão
 CREATE INDEX IF NOT EXISTS idx_alternativas_questao_id ON alternativas(questao_id);

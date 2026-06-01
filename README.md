@@ -1,13 +1,23 @@
 # Squad 32 – Sistema de Gestão de Provas SEED
 
-API para gerenciamento de provas, questões, simulados e certificações.  
-Projeto desenvolvido durante uma residência em software.
+<p align="center">
+  API para gerenciamento de provas, questões, simulados e certificações.<br>
+  Projeto desenvolvido durante a <strong>Residência em Software</strong>.
+</p>
 
 ---
 
-## 📌 Repositório
+## 📚 Sobre o Projeto
 
-https://github.com/Rafael-F-A/squad32-seed-api
+O **Squad 32 – Sistema de Gestão de Provas SEED** é uma API desenvolvida com foco na administração de avaliações educacionais, permitindo o gerenciamento de:
+
+- 📄 Provas
+- ❓ Questões
+- 📝 Simulados
+- 🏆 Certificações
+- 👥 Usuários e autenticação
+
+A aplicação foi construída seguindo uma arquitetura moderna baseada em APIs REST, utilizando autenticação JWT e integração com PostgreSQL/PostGIS.
 
 ---
 
@@ -22,42 +32,18 @@ https://github.com/Rafael-F-A/squad32-seed-api
 ### 🗄️ Banco de Dados
 - PostgreSQL
 - PostGIS
-- Supabase (Banco de dados em nuvem)
 
 ### 🎨 Front-end
 - HTML
 - CSS
-- JavaScript puro
-
-### 📦 Migrações
-- Scripts SQL numerados
-- Não utiliza Alembic
+- JavaScript
 
 ---
 
-## 🛢️ Estrutura do Banco de Dados
-
-O sistema possui as seguintes tabelas:
-
-- `usuarios`
-- `provas`
-- `questoes`
-- `alternativas`
-- `locais`
-- `reservas`
-- `tentativas`
-- `respostas`
-
-### 🌍 Recursos Geoespaciais
-
-A tabela `locais` utiliza a extensão **PostGIS** para armazenamento de dados de geolocalização.
-
----
-
-## 📂 Estrutura do Projeto
+#️⃣ Estrutura do Projeto
 
 ```bash
-squad32-seed-api/
+squad32-seed/
 │
 ├── backend/
 │   ├── app/
@@ -65,67 +51,67 @@ squad32-seed-api/
 │   └── .env
 │
 ├── frontend/
+│   └── index.html
 │
 ├── database/
 │   └── migrations/
+│       ├── 010_usuarios.sql
+│       ├── 020_provas.sql
+│       ├── 030_questoes.sql
+│       └── 040_alternativas.sql
 │
 └── README.md
 ```
 
 ---
 
+## 🛢️ Banco de Dados
+
+### ✅ Pré-requisitos
+
+Antes de iniciar, certifique-se de possuir:
+
+- PostgreSQL 15+
+- Extensão PostGIS instalada
+
+---
+
+## 🏗️ Criando o Banco
+
+```bash
+psql -U postgres -c "CREATE DATABASE squad32_seed;"
+```
+
+---
+
+## 📂 Executando as Migrações
+
+Os scripts SQL estão localizados em:
+
+```bash
+database/migrations/
+```
+
+Execute os arquivos na ordem numérica:
+
+```bash
+psql -U postgres -d squad32_seed -f database/migrations/010_usuarios.sql
+
+psql -U postgres -d squad32_seed -f database/migrations/020_provas.sql
+
+psql -U postgres -d squad32_seed -f database/migrations/030_questoes.sql
+
+psql -U postgres -d squad32_seed -f database/migrations/040_alternativas.sql
+```
+
+---
+
 ## ⚙️ Configuração do Ambiente
 
-### 1️⃣ Clonar o repositório
-
-```bash
-git clone https://github.com/Rafael-F-A/squad32-seed-api.git
-```
-
----
-
-### 2️⃣ Entrar na pasta do back-end
-
-```bash
-cd squad32-seed-api/backend
-```
-
----
-
-### 3️⃣ Criar ambiente virtual
-
-#### Windows
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-#### Linux / MacOS
-
-```bash
-python -m venv venv
-source venv/bin/activate
-```
-
----
-
-### 4️⃣ Instalar dependências
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-### 5️⃣ Configurar arquivo `.env`
-
-Cada membro da equipe deve criar seu próprio arquivo `.env` dentro da pasta `backend/`.
-
-A string de conexão do banco será compartilhada pelo líder do projeto através de canal seguro.
+Crie um arquivo `.env` dentro da pasta `backend/`:
 
 ```env
-DATABASE_URL=postgresql://... (string fornecida pelo líder)
+DATABASE_URL=postgresql://postgres:senha@localhost:5432/squad32_seed
 SECRET_KEY=37592
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -133,15 +119,43 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 ---
 
-## ▶️ Executando o Projeto
+## ▶️ Execução do Projeto
 
-### Iniciar servidor FastAPI
+### 🔹 Back-end
+
+```bash
+cd backend
+
+python -m venv venv
+```
+
+#### Ativando ambiente virtual
+
+##### Linux / MacOS
+
+```bash
+source venv/bin/activate
+```
+
+##### Windows
+
+```bash
+venv\Scripts\activate
+```
+
+#### Instalando dependências
+
+```bash
+pip install -r requirements.txt
+```
+
+#### Executando servidor
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-A aplicação estará disponível em:
+A API estará disponível em:
 
 ```bash
 http://localhost:8000
@@ -149,9 +163,25 @@ http://localhost:8000
 
 ---
 
-## 📚 Documentação da API
+### 🔹 Front-end
 
-Após iniciar o servidor, a documentação automática poderá ser acessada em:
+Abra o arquivo abaixo diretamente no navegador:
+
+```bash
+frontend/index.html
+```
+
+---
+
+## 🔐 Autenticação
+
+O sistema utiliza autenticação baseada em **JWT (JSON Web Token)** para proteção das rotas privadas.
+
+---
+
+## 🧪 Documentação da API
+
+Após iniciar o servidor, a documentação automática estará disponível em:
 
 ### Swagger UI
 
@@ -167,25 +197,14 @@ http://localhost:8000/redoc
 
 ---
 
-## 📌 Banco de Dados em Nuvem
-
-O projeto utiliza o **Supabase** como provedor do banco PostgreSQL em nuvem, permitindo:
-
-- Acesso remoto ao banco
-- Escalabilidade
-- Persistência de dados
-- Integração com PostgreSQL/PostGIS
-
----
-
 ## ⚠️ Problemas Comuns
 
 | Problema | Solução |
 |---|---|
-| `ModuleNotFoundError` | Ative o ambiente virtual |
-| `password authentication failed` | Verifique a `DATABASE_URL` |
-| `connection refused` | Verifique se a conexão com o Supabase está correta |
-| `uvicorn not found` | Instale as dependências do projeto |
+| `psql: command not found` | Adicione o PostgreSQL ao PATH do sistema |
+| `password authentication failed` | Verifique usuário e senha no `.env` |
+| `ModuleNotFoundError` | Ative o ambiente virtual antes de executar |
+| `connection refused` | Verifique se o PostgreSQL está em execução |
 
 ---
 
@@ -197,4 +216,4 @@ Projeto desenvolvido pela equipe **Squad 32** durante a Residência em Software.
 
 ## 📄 Licença
 
-Projeto desenvolvido para fins acadêmicos e educacionais.
+Este projeto foi desenvolvido para fins acadêmicos e educacionais.
