@@ -33,3 +33,11 @@ def resultado_simulado(
     aluno: models.Usuario = Depends(get_usuario_atual),
 ):
     return simulado_service.resultado_simulado(tentativa_id, aluno, db)
+
+@router.get("/{tentativa_id}/questao_atual", response_model=schemas.QuestaoAtualResponse)
+def questao_atual(
+    tentativa_id: int,
+    db: Session = Depends(get_db),
+    aluno: models.Usuario = Depends(get_usuario_atual),
+):
+    return simulado_service.questao_atual(tentativa_id, aluno, db)

@@ -1,0 +1,1 @@
+// toda comunicação com o backend
