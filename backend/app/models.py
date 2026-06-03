@@ -40,6 +40,8 @@ class Prova(Base):
     status = Column(String(20), default="RASCUNHO")
     nota_minima = Column(Float, default=6.0)
     tempo_limite = Column(Integer)
+    data_inicio_inscricao = Column(DateTime(timezone=True), nullable=True)
+    data_fim_inscricao = Column(DateTime(timezone=True), nullable=True)
     criado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -193,3 +195,30 @@ class Auditoria(Base):
     ip = Column(String(45))
     user_agent = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ModeloQuestao(Base):
+    __tablename__ = "modelos_questao"
+    id            = Column(Integer, primary_key=True, index=True)
+    modelo_texto  = Column(Text, nullable=False)
+    # Gabarito e alternativas também são templates
+    gabarito      = Column(Text, nullable=False)
+    distradores   = Column(JSON, nullable=False)
+    variaveis     = Column(JSON, nullable=True)
+    nivel         = Column(String(20), nullable=False)
+    serie         = Column(String(20), nullable=True)
+    componente_id = Column(Integer, ForeignKey("componentes_curriculares.id"), nullable=True)
+    dificuldade   = Column(String(20), default="MEDIO")
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
+
+class ComponenteCurricular(Base):
+    __tablename__ = "componentes_curriculares"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(100), nullable=False, unique=True)
+    codigo = Column(String(20), unique=True, nullable=True)
+    descricao = Column(Text, nullable=True)
+    nivel = Column(String(20), nullable=True)
+    serie = Column(String(20), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

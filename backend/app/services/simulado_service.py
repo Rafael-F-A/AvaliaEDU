@@ -240,3 +240,55 @@ def resultado_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) ->
         "status": tentativa.resultado,
         "respostas": detalhes,
     }
+
+def questao_atual(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict:
+    """
+    Retorna a questão atual de uma tentativa em andamento (sem avançar).
+    Útil para recuperar o estado após recarregar a página.
+    """
+    tentativa = db.query(models.Tentativa).filter(models.Tentativa.id == tentativa_id).first()
+    if not tentativa:
+        raise HTTPException(status_code=404, detail="Tentativa não encontrada.")
+    if tentativa.aluno_id != aluno.id:
+        raise HTTPException(status_code=403, detail="Essa tentativa não pertence a você.")
+    if tentativa.status != "EM_ANDAMENTO":
+        raise HTTPException(status_code=400, detail="Simulado não está em andamento.")
+
+    # Recupera a ordem das questões
+    ordem_ids = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
+    if not ordem_ids:
+        raise HTTPException(status_code=400, detail="Ordem das questões não definida.")
+
+    # Conta quantas respostas já foram dadas
+    respondidas = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id
+    ).count()
+
+    if respondidas >= len(ordem_ids):
+        raise HTTPException(status_code=400, detail="Simulado já finalizado.")
+
+    # Próxima questão (índice = respondidas, pois 0‑based)
+    questao_id = ordem_ids[respondidas]
+    questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
+    if not questao:
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
+
+    # Embaralha alternativas (como no iniciar)
+    alternativas = list(questao.alternativas)
+    random.shuffle(alternativas)
+
+    # Calcula tempo restante (opcional)
+    tempo_restante = None
+    if tentativa.prova.tempo_limite:
+        segundos_passados = (datetime.utcnow() - tentativa.data_inicio).total_seconds()
+        tempo_restante = max(0, tentativa.prova.tempo_limite * 60 - segundos_passados)
+
+    return {
+        "tentativa_id": tentativa.id,
+        "questao_id": questao.id,
+        "enunciado": questao.enunciado,
+        "alternativas": alternativas,
+        "questao_numero": respondidas + 1,
+        "total_questoes": len(ordem_ids),
+        "tempo_restante_segundos": tempo_restante,
+    }

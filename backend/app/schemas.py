@@ -60,14 +60,49 @@ class ProvaUpdate(BaseModel):
     data_inicio_inscricao: Optional[datetime] = None
     data_fim_inscricao: Optional[datetime] = None
 
-class ProvaResponse(ProvaBase):
-    id: int
-    status: str
-    created_at: datetime
-    criado_por: Optional[int] = None
+class ProvaResponse(BaseModel):
+    id                    : int
+    titulo                : str
+    descricao             : Optional[str] = None
+    nivel                 : str
+    serie                 : str
+    tipo                  : str
+    status                : str
+    nota_minima           : Optional[float] = None
+    tempo_limite          : Optional[int] = None
+    data_inicio_inscricao : Optional[datetime] = None
+    data_fim_inscricao    : Optional[datetime] = None
+    criado_por            : Optional[int] = None
+    created_at            : datetime
 
     class Config:
         from_attributes = True
+
+class ProvaDisponivelResponse(BaseModel):
+    id                    : int
+    titulo                : str
+    descricao             : Optional[str] = None
+    nivel                 : str
+    serie                 : str
+    tipo                  : str
+    status                : str
+    nota_minima           : Optional[float] = None
+    tempo_limite          : Optional[int] = None
+    data_inicio_inscricao : Optional[datetime] = None
+    data_fim_inscricao    : Optional[datetime] = None
+    criado_por            : Optional[int] = None
+    created_at            : datetime
+    total_questoes        : int
+    dias_restantes        : Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class ProvasDisponivelListResponse(BaseModel):
+    total  : int
+    skip   : int
+    limit  : int
+    provas : list[ProvaDisponivelResponse]
 
 class MensagemResponse(BaseModel):
     message: str
@@ -167,6 +202,15 @@ class ResultadoSimuladoResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class QuestaoAtualResponse(BaseModel):
+    tentativa_id: int
+    questao_id: int
+    enunciado: str
+    alternativas: list[AlternativaPublica]
+    questao_numero: int
+    total_questoes: int
+    tempo_restante_segundos: Optional[int] = None
+
 # Geolocalização / Locais
 
 class LocalBase(BaseModel):
@@ -201,11 +245,15 @@ class CertificacaoSolicitadaResponse(BaseModel):
     status: str
 
 class CertificadoPublicoResponse(BaseModel):
-    id: int
-    aluno_nome: str
-    prova_titulo: str
-    data_emissao: datetime
-    codigo: str
+    id           : int
+    aluno_nome   : str
+    prova_titulo : str
+    data_emissao : datetime
+    codigo       : str
+    url_pdf      : Optional[str] = None
+ 
+    class Config:
+        from_attributes = True
 
 class CertificadoValidarResponse(BaseModel):
     valido: bool
@@ -220,3 +268,66 @@ class HistoricoCertificacaoResponse(BaseModel):
     resultado: Optional[str] = None
     certificado_id: Optional[int] = None
     bloqueio_ate: Optional[date] = None
+
+# Modelos de questão
+ 
+class ModeloQuestaoCreate(BaseModel):
+    modelo_texto  : str
+    gabarito      : str
+    distradores   : list[str]
+    variaveis     : Optional[dict] = None
+    nivel         : str
+    serie         : Optional[str] = None
+    componente_id : Optional[int] = None
+    dificuldade   : Optional[str] = "MEDIO"
+ 
+class ModeloQuestaoResponse(BaseModel):
+    id            : int
+    modelo_texto  : str
+    gabarito      : str
+    distradores   : list[str]
+    variaveis     : Optional[dict] = None
+    nivel         : str
+    serie         : Optional[str] = None
+    componente_id : Optional[int] = None
+    dificuldade   : str
+    created_at    : Optional[datetime] = None
+ 
+    class Config:
+        from_attributes = True
+ 
+# Geração automática para uma prova
+ 
+class GerarQuestoesRequest(BaseModel):
+    quantidade    : int = 10
+    nivel         : Optional[str] = None   # herda da prova se omitido
+    dificuldade   : Optional[str] = None
+    componente_id : Optional[int] = None
+ 
+class GerarQuestoesResponse(BaseModel):
+    prova_id          : int
+    quantidade_gerada : int
+    quantidade_erros  : int
+    erros             : list[dict]
+    questoes          : list[QuestaoResponse]
+ 
+    class Config:
+        from_attributes = True
+
+# Exportação de prova presencial
+class ExportarProvaRequest(BaseModel):
+    aluno_ids : list[int]   # IDs dos alunos que vão receber o PDF
+ 
+ 
+class ResultadoExportacaoAluno(BaseModel):
+    aluno_id   : int
+    aluno_nome : Optional[str] = None
+    url_pdf    : Optional[str] = None
+    erro       : Optional[str] = None
+ 
+ 
+class ExportarProvaResponse(BaseModel):
+    prova_id       : int
+    total_gerados  : int
+    total_erros    : int
+    resultados     : list[ResultadoExportacaoAluno]
