@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.database import get_db
 from app import models
-from app.routers import auth, provas, questoes, simulados, certificacoes, geracao, pdf
+from app.routers import auth, provas, questoes, simulados, certificacoes, geracao, pdf, geolocalizacao
 from app.dependencies import get_usuario_admin
 
 load_dotenv()
@@ -43,6 +43,7 @@ app.include_router(certificacoes.router)
 app.include_router(geracao.router)
 app.include_router(geracao.router)
 app.include_router(pdf.router)
+app.include_router(geolocalizacao.router)
 
 # Endpoints públicos
 @app.get("/", tags=["Status"])
