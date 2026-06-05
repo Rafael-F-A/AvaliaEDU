@@ -20,6 +20,13 @@ from fastapi import HTTPException
 from app import models
 from app.utils.storage import upload_certificado
 
+MESES_PT = {
+    1: "janeiro", 2: "fevereiro", 3: "março",
+    4: "abril",   5: "maio",      6: "junho",
+    7: "julho",   8: "agosto",    9: "setembro",
+    10: "outubro", 11: "novembro", 12: "dezembro",
+}
+
 # Paleta de cores SEED / Sergipe
 AZUL_SEED    = colors.HexColor("#0B57C5")
 VERDE_SEED   = colors.HexColor("#1D9E75")
@@ -39,47 +46,53 @@ def _estilos():
             "titulo_gov",
             fontName="Helvetica-Bold",
             fontSize=11,
+            leading=16,
             textColor=AZUL_SEED,
             alignment=TA_CENTER,
-            spaceAfter=2,
+            spaceAfter=4,
         ),
         "subtitulo_gov": ParagraphStyle(
             "subtitulo_gov",
             fontName="Helvetica",
             fontSize=9,
+            leading=14,
             textColor=CINZA_TEXTO,
             alignment=TA_CENTER,
-            spaceAfter=14,
+            spaceAfter=18,
         ),
         "titulo_cert": ParagraphStyle(
             "titulo_cert",
             fontName="Helvetica-Bold",
             fontSize=26,
+            leading=34,
             textColor=AZUL_SEED,
             alignment=TA_CENTER,
-            spaceAfter=6,
-            spaceBefore=20,
+            spaceAfter=10,
+            spaceBefore=14,
         ),
         "subtitulo_cert": ParagraphStyle(
             "subtitulo_cert",
             fontName="Helvetica",
             fontSize=13,
+            leading=20,
             textColor=CINZA_TEXTO,
             alignment=TA_CENTER,
-            spaceAfter=24,
+            spaceAfter=18,
         ),
         "texto_conferido": ParagraphStyle(
             "texto_conferido",
             fontName="Helvetica",
             fontSize=11,
+            leading=17,
             textColor=CINZA_TEXTO,
             alignment=TA_CENTER,
-            spaceAfter=6,
+            spaceAfter=10,
         ),
         "nome_aluno": ParagraphStyle(
             "nome_aluno",
             fontName="Helvetica-Bold",
             fontSize=22,
+            leading=30,
             textColor=AZUL_SEED,
             alignment=TA_CENTER,
             spaceAfter=6,
@@ -88,23 +101,25 @@ def _estilos():
             "corpo",
             fontName="Helvetica",
             fontSize=11,
+            leading=20,
             textColor=CINZA_TEXTO,
             alignment=TA_CENTER,
-            leading=18,
-            spaceAfter=20,
+            spaceAfter=24,
         ),
         "rodape": ParagraphStyle(
             "rodape",
             fontName="Helvetica",
             fontSize=8,
+            leading=13,
             textColor=colors.HexColor("#888888"),
             alignment=TA_CENTER,
-            spaceAfter=4,
+            spaceAfter=6,
         ),
         "codigo": ParagraphStyle(
             "codigo",
             fontName="Helvetica-Bold",
             fontSize=9,
+            leading=14,
             textColor=CINZA_TEXTO,
             alignment=TA_CENTER,
         ),
@@ -113,49 +128,11 @@ def _estilos():
 
 # Brasão / identidade visual
 
-def _brasao_drawing(width=120, height=80) -> Drawing:
-    """
-    Representação gráfica institucional da SEED/SE em ReportLab Drawing.
-    Inclui as cores oficiais e o texto do órgão.
-    (Substitua por SVG real convertido se tiver o arquivo do brasão oficial.)
-    """
-    d = Drawing(width, height)
+LOGO_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "assets", "logo_seed.png")
+)
 
-    # Faixa azul superior
-    d.add(Rect(0, height - 28, width, 28, fillColor=AZUL_SEED, strokeColor=None))
-    # Faixa amarela central
-    d.add(Rect(0, height - 48, width, 20, fillColor=AMARELO_SEED, strokeColor=None))
-    # Faixa verde inferior
-    d.add(Rect(0, height - 62, width, 14, fillColor=VERDE_SEED, strokeColor=None))
-
-    # Texto SEED
-    d.add(String(
-        width / 2, height - 20,
-        "SEED/SE",
-        fontName="Helvetica-Bold",
-        fontSize=11,
-        fillColor=colors.white,
-        textAnchor="middle",
-    ))
-    # Subtexto
-    d.add(String(
-        width / 2, height - 42,
-        "SECRETARIA DE ESTADO",
-        fontName="Helvetica-Bold",
-        fontSize=6.5,
-        fillColor=AZUL_SEED,
-        textAnchor="middle",
-    ))
-    d.add(String(
-        width / 2, height - 51,
-        "DA EDUCAÇÃO DE SERGIPE",
-        fontName="Helvetica-Bold",
-        fontSize=6.5,
-        fillColor=AZUL_SEED,
-        textAnchor="middle",
-    ))
-    return d
-
+print("LOGO PATH:", LOGO_PATH)
 
 def _qr_image(conteudo: str, size: int = 90) -> RLImage:
     """Gera QR code como ReportLab Image a partir de uma string URL."""
@@ -216,9 +193,7 @@ def gerar_pdf_certificado(certificado: models.Certificado) -> bytes:
     # Data de emissão formatada
     data_emissao = certificado.data_emissao
     if isinstance(data_emissao, datetime):
-        data_str = data_emissao.strftime("%d de %B de %Y").lower()
-        # Capitaliza só o primeiro caractere
-        data_str = data_str[0].upper() + data_str[1:]
+        data_str = f"{data_emissao.day} de {MESES_PT[data_emissao.month]} de {data_emissao.year}"
     else:
         data_str = str(data_emissao)
 
@@ -240,17 +215,17 @@ def gerar_pdf_certificado(certificado: models.Certificado) -> bytes:
     story = []
 
     # Cabeçalho institucional
-    brasao = _brasao_drawing(130, 85)
-    brasao_table = Table(
-        [[brasao]],
-        colWidths=[PAGE_W - 5.6 * cm],
+    logo = RLImage(LOGO_PATH, width=10 * cm, height=2.8 * cm)
+    logo_table = Table(
+    [[logo]],
+    colWidths=[PAGE_W - 5.6 * cm],
     )
-    brasao_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    logo_table.setStyle(TableStyle([
+    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
-    story.append(brasao_table)
-    story.append(Spacer(1, 6))
+    story.append(logo_table)
+    story.append(Spacer(1, 10))
 
     story.append(Paragraph("GOVERNO DO ESTADO DE SERGIPE", e["titulo_gov"]))
     story.append(Paragraph(
@@ -269,16 +244,23 @@ def gerar_pdf_certificado(certificado: models.Certificado) -> bytes:
 
     story.append(HRFlowable(
         width="60%", thickness=0.5,
-        color=BORDA, spaceAfter=20,
+        color=BORDA, spaceAfter=28,
     ))
 
     # Corpo do certificado
     story.append(Paragraph("Certificamos que", e["texto_conferido"]))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 6))
     story.append(Paragraph(aluno.nome.upper(), e["nome_aluno"]))
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 6))
 
-    nivel_fmt = (aluno.nivel or "—").replace("_", " ")
+    NIVEL_LABELS = {
+    "FUNDAMENTAL_I":  "Fundamental I",
+    "FUNDAMENTAL_II": "Fundamental II",
+    "MEDIO":          "Médio",
+    "ENEM":           "ENEM",
+    "EJA":            "EJA",
+    }
+    nivel_fmt = NIVEL_LABELS.get(aluno.nivel or "", aluno.nivel or "—")
     serie_fmt  = aluno.serie or ""
     serie_txt  = f", {serie_fmt}" if serie_fmt else ""
 
@@ -295,7 +277,7 @@ def gerar_pdf_certificado(certificado: models.Certificado) -> bytes:
         e["corpo"],
     ))
 
-    story.append(Spacer(1, 28))
+    story.append(Spacer(1, 20))
 
     # Linha de assinatura
     assinatura_data = [
@@ -321,69 +303,87 @@ def gerar_pdf_certificado(certificado: models.Certificado) -> bytes:
         hAlign="CENTER",
     )
     assinatura_table.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+    ("TOPPADDING", (0, 0), (-1, -1), 8),   # era 4
+    ("BOTTOMPADDING", (0, 0), (-1, -1), 6), # era 2
     ]))
     story.append(assinatura_table)
 
-    story.append(Spacer(1, 28))
+    story.append(Spacer(1, 16))
     story.append(HRFlowable(
         width="100%", thickness=0.5,
         color=BORDA, spaceAfter=14,
     ))
 
-    # Rodapé com QR code e código de validação
+     # Rodapé com QR code e código de validação
     qr_img = _qr_image(url_validacao, size=80)
 
-    rodape_conteudo = [
-        Paragraph("Autenticidade", ParagraphStyle(
-            "auth_titulo",
-            fontName="Helvetica-Bold",
-            fontSize=9,
-            textColor=AZUL_SEED,
-            spaceAfter=4,
-        )),
-        Paragraph(
-            "Escaneie o QR code ou acesse o link abaixo para verificar a autenticidade deste certificado.",
-            ParagraphStyle(
-                "auth_corpo",
-                fontName="Helvetica",
-                fontSize=8,
-                textColor=CINZA_TEXTO,
-                leading=12,
-                spaceAfter=6,
-            ),
-        ),
-        Paragraph(
-            f'<a href="{url_validacao}" color="#0B57C5">{url_validacao}</a>',
-            ParagraphStyle(
-                "auth_link",
-                fontName="Helvetica",
-                fontSize=8,
-                textColor=AZUL_SEED,
-                spaceAfter=6,
-            ),
-        ),
-        Paragraph(
-            f"Código de validação: <b>{certificado.codigo_validacao}</b>",
-            e["codigo"],
-        ),
-    ]
+    estilo_auth_titulo = ParagraphStyle(
+        "auth_titulo",
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=14,
+        textColor=AZUL_SEED,
+        spaceAfter=6,
+    )
+    estilo_auth_corpo = ParagraphStyle(
+        "auth_corpo",
+        fontName="Helvetica",
+        fontSize=8,
+        leading=13,
+        textColor=CINZA_TEXTO,
+        spaceAfter=5,
+    )
+    estilo_auth_link = ParagraphStyle(
+        "auth_link",
+        fontName="Helvetica",
+        fontSize=8,
+        leading=13,
+        textColor=AZUL_SEED,
+        spaceAfter=5,
+    )
+
+    rodape_texto = Table(
+        [
+            [Paragraph("Autenticidade", estilo_auth_titulo)],
+            [Paragraph(
+                "Escaneie o QR code ou acesse o link abaixo para verificar "
+                "a autenticidade deste certificado.",
+                estilo_auth_corpo,
+            )],
+            [Paragraph(
+                f'<a href="{url_validacao}" color="#0B57C5">{url_validacao}</a>',
+                estilo_auth_link,
+            )],
+            [Paragraph(
+                f"Código de validação: <b>{certificado.codigo_validacao}</b>",
+                e["codigo"],
+            )],
+        ],
+        colWidths=[PAGE_W - 5.6 * cm - 106],
+    )
+    rodape_texto.setStyle(TableStyle([
+        ("TOPPADDING",    (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+    ]))
 
     rodape_table = Table(
-        [[qr_img, rodape_conteudo]],
-        colWidths=[90, PAGE_W - 5.6 * cm - 100],
+        [[qr_img, rodape_texto]],
+        colWidths=[96, PAGE_W - 5.6 * cm - 106],
         hAlign="LEFT",
     )
     rodape_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (1, 0), (1, 0), 14),
-        ("RIGHTPADDING", (0, 0), (0, 0), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING",   (1, 0), (1, 0),   12),
+        ("RIGHTPADDING",  (0, 0), (0, 0),   0),
+        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]))
-    story.append(rodape_table)
 
+    story.append(rodape_table)
+    
     # Build com borda
     doc.build(
         story,

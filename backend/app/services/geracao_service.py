@@ -1,9 +1,11 @@
+import os
+import tempfile
 import random
 import json
 import re
 from typing import Optional
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 
 from app import models, schemas
 
@@ -83,6 +85,7 @@ def _gerar_questao_a_partir_de_modelo(
         enunciado=enunciado,
         prova_id=prova_id,
         nivel_dificuldade=modelo.dificuldade,
+        imagem_url=modelo.imagem_url,
     )
     db.add(questao)
     db.flush()  # obtém o ID sem commit
@@ -223,3 +226,36 @@ def deletar_modelo(modelo_id: int, db: Session) -> None:
         raise HTTPException(status_code=404, detail="Modelo não encontrado.")
     db.delete(modelo)
     db.commit()
+
+def fazer_upload_imagem_modelo(modelo_id: int, arquivo, db: Session) -> str:
+    EXTENSOES_PERMITIDAS = {"image/jpeg", "image/png", "image/webp"}
+    TAMANHO_MAXIMO = 5 * 1024 * 1024
+
+    if arquivo.content_type not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(400, "Formato inválido. Use PNG, JPG ou WEBP.")
+
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(404, "Modelo não encontrado.")
+
+    extensao = arquivo.content_type.split("/")[1]
+
+    with tempfile.NamedTemporaryFile(suffix=f".{extensao}", delete=False) as tmp:
+        conteudo = arquivo.file.read()
+        if len(conteudo) > TAMANHO_MAXIMO:
+            raise HTTPException(400, "Imagem muito grande. Máximo 5MB.")
+        tmp.write(conteudo)
+        tmp_path = tmp.name
+
+    try:
+        from app.utils.storage import upload_imagem_modelo
+        url = upload_imagem_modelo(tmp_path, modelo_id, extensao)
+    finally:
+        os.unlink(tmp_path)
+
+    modelo.imagem_url = url
+    db.commit()
+    db.refresh(modelo)
+    return url

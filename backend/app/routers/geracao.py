@@ -1,7 +1,7 @@
 """
 US11 — Endpoints de geração automática e gerenciamento de modelos de questão
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -88,3 +88,16 @@ def deletar_modelo(
     admin     : models.Usuario = Depends(get_usuario_admin),
 ):
     geracao_service.deletar_modelo(modelo_id, db)
+
+@router.post(
+    "/modelos/{modelo_id}/imagem",
+    summary="Faz upload de imagem para um modelo de questão",
+)
+def upload_imagem_modelo(
+    modelo_id: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    url = geracao_service.fazer_upload_imagem_modelo(modelo_id, arquivo, db)
+    return {"modelo_id": modelo_id, "imagem_url": url}

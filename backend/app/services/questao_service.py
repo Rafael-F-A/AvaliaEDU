@@ -1,3 +1,7 @@
+import os
+import tempfile
+from fastapi import UploadFile
+from app.utils.storage import upload_imagem_questao
 from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -53,6 +57,7 @@ def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
         enunciado=dados.enunciado,
         prova_id=dados.prova_id,
         nivel_dificuldade=dados.nivel_dificuldade,
+        imagem_url=dados.imagem_url,
     )
     db.add(nova_questao)
     db.flush()
@@ -93,6 +98,7 @@ def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -
 
     questao.enunciado = dados.enunciado
     questao.nivel_dificuldade = dados.nivel_dificuldade
+    questao.imagem_url = dados.imagem_url
 
     # Remove as alternativas antigas e recria
     db.query(models.Alternativa).filter(
@@ -138,3 +144,48 @@ def listar_alternativas(questao_id: int, db: Session) -> list:
         .order_by(models.Alternativa.ordem)
         .all()
     )
+
+def fazer_upload_imagem(questao_id: int, arquivo: UploadFile, db) -> str:
+    """
+    Valida, salva temporariamente e faz upload da imagem para o Supabase.
+    Atualiza imagem_url na questão.
+    """
+    EXTENSOES_PERMITIDAS = {"image/jpeg", "image/png", "image/webp"}
+    TAMANHO_MAXIMO = 5 * 1024 * 1024  # 5MB
+
+    if arquivo.content_type not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(
+            status_code=400,
+            detail="Formato inválido. Use PNG, JPG ou WEBP.",
+        )
+
+    questao = db.query(models.Questao).filter(
+        models.Questao.id == questao_id
+    ).first()
+    if not questao:
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
+
+    extensao = arquivo.content_type.split("/")[1]
+
+    with tempfile.NamedTemporaryFile(suffix=f".{extensao}", delete=False) as tmp:
+        conteudo = arquivo.file.read()
+
+        if len(conteudo) > TAMANHO_MAXIMO:
+            raise HTTPException(
+                status_code=400,
+                detail="Imagem muito grande. Máximo 5MB.",
+            )
+
+        tmp.write(conteudo)
+        tmp_path = tmp.name
+
+    try:
+        url = upload_imagem_questao(tmp_path, questao_id, extensao)
+    finally:
+        os.unlink(tmp_path)
+
+    questao.imagem_url = url
+    db.commit()
+    db.refresh(questao)
+
+    return url
