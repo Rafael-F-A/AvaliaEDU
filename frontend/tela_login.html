@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login-SEED</title>
+    <link rel="stylesheet" href="./css/main.css">
+</head>
+<body>
+   <header>
+
+    <div class="logo">
+      <h1>
+        <span class="blue2">A</span>
+         <span class="green">v</span>
+        <span class="yellow">a</span>
+          <span class="blue2">l</span>
+          <span class="green">i</span>
+          <span class="yellow">a -</span>
+
+        <span class="blue2">E</span>
+        <span class="green">D</span>
+        <span class="yellow">U</span>
+      </h1>
+    </div>
+
+       <nav>
+      <a href="#">Início</a>
+      <a href="#">Dashboard</a>
+      <a href="#">Saiba como usar o AvaliaEdu</a>
+      <a href="#">Certificados</a>
+    </nav>
+   </header>
+
+   <div class="login">
+
+  <form method="POST" action="api/login">
+  <label for="mail">Email: </label>
+  <input type="email" id="mail" name="mail" />
+  <br />
+  <label for="pw">Senha: </label>
+  <input type="password" id="pw" name="pw" />
+  <br />
+  <input type="submit" value="Login" />
+  <br />
+  <input type="checkbox" id="ck" name="ck" />
+  <label for="ck">Lembrar-me</label>
+  <p>Não tem uma conta? <a href="tela_cadastro.html">Cadastre-se</a></p>
+</form>
+   </div>
+
+   
+ 
+</body>
+</html>
