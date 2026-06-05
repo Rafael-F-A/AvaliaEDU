@@ -137,13 +137,15 @@ class QuestaoCreate(BaseModel):
     prova_id: int
     nivel_dificuldade: Optional[str] = "MEDIO"
     alternativas: list[AlternativaCreate]
-
+    imagem_url: Optional[str] = None
+    
 class QuestaoResponse(BaseModel):
     id: int
     enunciado: str
     prova_id: int
     nivel_dificuldade: str
     ordem: Optional[int]
+    imagem_url: Optional[str] = None
     alternativas: list[AlternativaResponse]
 
     class Config:
@@ -331,3 +333,7 @@ class ExportarProvaResponse(BaseModel):
     total_gerados  : int
     total_erros    : int
     resultados     : list[ResultadoExportacaoAluno]
+
+class ImagemUploadResponse(BaseModel):
+    questao_id: int
+    imagem_url: str

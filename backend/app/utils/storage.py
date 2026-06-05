@@ -33,6 +33,17 @@ def upload_prova(caminho_local: str, nome_destino: str) -> str:
     """
     return _upload("provas", caminho_local, nome_destino, expires_in=86400)
 
+def upload_imagem_questao(caminho_local: str, questao_id: int, extensao: str = "png") -> str:
+    """
+    Faz upload de imagem de questão para o bucket 'questoes'.
+    Retorna URL assinada válida por 7 dias.
+    """
+    nome_destino = f"questoes/{questao_id}/imagem.{extensao}"
+    return _upload("questoes", caminho_local, nome_destino, expires_in=604800)
+
+def upload_imagem_modelo(caminho_local: str, modelo_id: int, extensao: str = "png") -> str:
+    nome_destino = f"modelos/{modelo_id}/imagem.{extensao}"
+    return _upload("questoes", caminho_local, nome_destino, expires_in=604800)
 
 def _upload(bucket: str, caminho_local: str, nome_destino: str, expires_in: int = 3600) -> str:
     sb = _supabase()

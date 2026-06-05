@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -52,3 +52,17 @@ def listar_alternativas(
     db: Session = Depends(get_db),
 ):
     return questao_service.listar_alternativas(questao_id, db)
+
+@router.post(
+    "/{questao_id}/imagem",
+    response_model=schemas.ImagemUploadResponse,
+    summary="Faz upload de imagem para uma questão",
+)
+def upload_imagem_questao(
+    questao_id: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    url = questao_service.fazer_upload_imagem(questao_id, arquivo, db)
+    return {"questao_id": questao_id, "imagem_url": url}

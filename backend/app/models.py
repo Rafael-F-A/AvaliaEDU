@@ -62,6 +62,7 @@ class Questao(Base):
     prova_id = Column(Integer, ForeignKey("provas.id", ondelete="CASCADE"), nullable=False)
     nivel_dificuldade = Column(String(20), default="MEDIO")
     ordem = Column(Integer)
+    imagem_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -210,6 +211,7 @@ class ModeloQuestao(Base):
     dificuldade   = Column(String(20), default="MEDIO")
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
+    imagem_url = Column(String(500), nullable=True)
 
 class ComponenteCurricular(Base):
     __tablename__ = "componentes_curriculares"
