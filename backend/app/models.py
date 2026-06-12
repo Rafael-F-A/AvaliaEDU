@@ -42,6 +42,8 @@ class Prova(Base):
     tempo_limite = Column(Integer)
     data_inicio_inscricao = Column(DateTime(timezone=True), nullable=True)
     data_fim_inscricao = Column(DateTime(timezone=True), nullable=True)
+    data_inicio = Column(DateTime(timezone=True), nullable=True)
+    data_fim = Column(DateTime(timezone=True), nullable=True)
     criado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -81,7 +83,8 @@ class Alternativa(Base):
     is_correta = Column(Boolean, default=False)
     ordem = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    imagem_url = Column(String(500), nullable=True)
+    
     # Relacionamentos
     questao = relationship("Questao", back_populates="alternativas")
     respostas = relationship("Resposta", back_populates="alternativa")
@@ -118,6 +121,7 @@ class Reserva(Base):
     data_expiracao = Column(DateTime(timezone=True))
     status = Column(String(20), default="ATIVA")
     necessidades_especiais = Column(Text)
+    tentativa_id = Column(Integer, ForeignKey("tentativas.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -144,6 +148,8 @@ class Tentativa(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     ordem_questoes = Column(JSON, nullable=True)
     ordem_alternativas = Column(JSON, nullable=True)
+    modalidade = Column(String(15), default="ONLINE")
+    reserva_id = Column(Integer, ForeignKey("reservas.id"), nullable=True)
 
     # Relacionamentos
     aluno = relationship("Usuario", back_populates="tentativas")

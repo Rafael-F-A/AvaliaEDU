@@ -18,61 +18,51 @@ router = APIRouter(prefix="/provas", tags=["Provas"])
     summary="Lista provas disponíveis para o aluno (US14)",
 )
 def listar_provas_disponiveis(
-    nivel  : Optional[str] = Query(None, description="Sobrescreve o nível do perfil"),
-    tipo   : Optional[str] = Query(None, description="SIMULADO | CERTIFICACAO"),
-    skip   : int = Query(0, ge=0),
-    limit  : int = Query(20, ge=1, le=100),
-    db     : Session = Depends(get_db),
-    aluno  : models.Usuario = Depends(get_usuario_atual),
+    nivel: Optional[str] = Query(None, description="Sobrescreve o nível do perfil"),
+    tipo: Optional[str] = Query(None, description="SIMULADO | CERTIFICACAO"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    aluno: models.Usuario = Depends(get_usuario_atual),
 ):
-    """
-    Retorna apenas provas **publicadas**, dentro do período de inscrição,
-    compatíveis com o nível do aluno, **excluindo** as já realizadas ou em andamento.
-
-    - `nivel` opcional: sobrescreve o nível do perfil do aluno para este filtro.
-    - `tipo` opcional: `SIMULADO` ou `CERTIFICACAO`.
-    - Ordenadas pela data limite mais próxima (provas sem prazo vêm por último).
-    """
     return prova_service.listar_provas_aluno(
-        db=db,
-        aluno=aluno,
-        nivel=nivel,
-        tipo=tipo,
-        skip=skip,
-        limit=limit,
+        db=db, aluno=aluno, nivel=nivel, tipo=tipo, skip=skip, limit=limit,
     )
-
-
-# Endpoints administrativos / gerais
 
 @router.post("/", response_model=schemas.ProvaResponse, status_code=201)
 def criar_prova(
-    dados   : schemas.ProvaCreate,
-    db      : Session = Depends(get_db),
-    usuario : models.Usuario = Depends(get_usuario_admin),
+    dados: schemas.ProvaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
 ):
     return prova_service.criar_prova(dados, criado_por=usuario.id, db=db)
 
-
-@router.get("/", response_model=List[schemas.ProvaResponse])
+@router.get(
+    "/",
+    response_model=schemas.ProvasListResponse,
+    summary="Lista todas as provas com paginação (US06)",
+)
 def listar_provas(
-    nivel  : Optional[str] = Query(None),
-    serie  : Optional[str] = Query(None),
-    tipo   : Optional[str] = Query(None),
-    skip   : int = Query(0, ge=0),
-    limit  : int = Query(20, ge=1, le=100),
-    db     : Session = Depends(get_db),
+    nivel: Optional[str] = Query(None),
+    serie: Optional[str] = Query(None),
+    tipo: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(get_usuario_atual),
 ):
-    resultado = prova_service.listar_provas(db, usuario, nivel, serie, tipo, skip, limit)
-    return resultado["provas"]
+    """
+    Retorna lista paginada de provas com total, skip e limit.
+    Admin vê todas (incluindo rascunhos). Aluno vê apenas publicadas.
+    """
+    return prova_service.listar_provas(db, usuario, nivel, serie, tipo, skip, limit)
 
 
 @router.get("/{prova_id}", response_model=schemas.ProvaResponse)
 def buscar_prova(
     prova_id: int,
-    db      : Session = Depends(get_db),
-    usuario : models.Usuario = Depends(get_usuario_atual),
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_atual),
 ):
     return prova_service.buscar_prova_por_id(prova_id, usuario, db)
 
@@ -80,9 +70,9 @@ def buscar_prova(
 @router.put("/{prova_id}", response_model=schemas.ProvaResponse)
 def editar_prova(
     prova_id: int,
-    dados   : schemas.ProvaUpdate,
-    db      : Session = Depends(get_db),
-    usuario : models.Usuario = Depends(get_usuario_admin),
+    dados: schemas.ProvaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
 ):
     return prova_service.editar_prova(prova_id, dados, db)
 
@@ -90,8 +80,8 @@ def editar_prova(
 @router.patch("/{prova_id}/publicar", response_model=schemas.ProvaResponse)
 def publicar_prova(
     prova_id: int,
-    db      : Session = Depends(get_db),
-    usuario : models.Usuario = Depends(get_usuario_admin),
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
 ):
     """Publica uma prova (RASCUNHO → PUBLICADA). Exige ao menos 1 questão."""
     return prova_service.publicar_prova(prova_id, db)
@@ -100,8 +90,8 @@ def publicar_prova(
 @router.delete("/{prova_id}", response_model=schemas.MensagemResponse)
 def deletar_prova(
     prova_id: int,
-    db      : Session = Depends(get_db),
-    usuario : models.Usuario = Depends(get_usuario_admin),
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
 ):
     prova_service.deletar_prova(prova_id, db)
     return {"message": "Prova deletada com sucesso."}

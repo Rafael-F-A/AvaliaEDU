@@ -22,7 +22,7 @@ from fastapi import HTTPException
 from app import models
 from app.utils.storage import upload_certificado
 
-# ── Constantes de cor ────────────────────────────────────────────────────────
+# Constantes de cor
 AZUL_SEED    = colors.HexColor("#0B57C5")
 AMARELO_SEED = colors.HexColor("#F2C230")
 CINZA_CLARO  = colors.HexColor("#F5F5F5")
@@ -50,7 +50,7 @@ TIPO_LABELS = {
 }
 
 
-# ── Estilos ──────────────────────────────────────────────────────────────────
+# Estilos
 
 def _estilos():
     return {
@@ -147,7 +147,7 @@ def _estilos():
     }
 
 
-# ── Borda e rodapé de página ─────────────────────────────────────────────────
+# Borda e rodapé de página
 
 def _borda_prova(canvas, doc):
     canvas.saveState()
@@ -164,7 +164,7 @@ def _borda_prova(canvas, doc):
     canvas.restoreState()
 
 
-# ── Geração do PDF para um aluno ─────────────────────────────────────────────
+# Geração do PDF para um aluno
 
 def gerar_pdf_prova_aluno(
     prova: models.Prova,
@@ -194,7 +194,7 @@ def gerar_pdf_prova_aluno(
 
     story = []
 
-    # ── Logo institucional ────────────────────────────────────────────────
+    # Logo institucional
     logo = RLImage(LOGO_PATH, width=9 * cm, height=2.5 * cm)
     logo_table = Table(
         [[logo]],
@@ -207,7 +207,7 @@ def gerar_pdf_prova_aluno(
     story.append(logo_table)
     story.append(Spacer(1, 8))
 
-    # ── Cabeçalho ─────────────────────────────────────────────────────────
+    # Cabeçalho
     story.append(Paragraph(
         "GOVERNO DO ESTADO DE SERGIPE — SECRETARIA DE ESTADO DA EDUCAÇÃO (SEED/SE)",
         estilos["cabecalho"],
@@ -221,7 +221,7 @@ def gerar_pdf_prova_aluno(
 
     story.append(HRFlowable(width="100%", thickness=2, color=AZUL_SEED, spaceAfter=8))
 
-    # ── Título da prova ───────────────────────────────────────────────────
+    # Título da prova
     story.append(Paragraph(prova.titulo.upper(), estilos["titulo_prova"]))
 
     tempo_str = (
@@ -236,7 +236,7 @@ def gerar_pdf_prova_aluno(
 
     story.append(HRFlowable(width="100%", thickness=0.5, color=BORDA, spaceAfter=12))
 
-    # ── Identificação do aluno ────────────────────────────────────────────
+    # Identificação do aluno
     id_table = Table(
         [
             [
@@ -267,7 +267,7 @@ def gerar_pdf_prova_aluno(
     story.append(id_table)
     story.append(Spacer(1, 8))
 
-    # ── Instruções ────────────────────────────────────────────────────────
+    # Instruções
     instrucoes_box = Table(
         [[Paragraph(
             "<b>INSTRUÇÕES:</b> Leia cada questão com atenção. "
@@ -290,7 +290,7 @@ def gerar_pdf_prova_aluno(
     story.append(instrucoes_box)
     story.append(Spacer(1, 16))
 
-    # ── Questões ──────────────────────────────────────────────────────────
+    # Questões
     arquivos_tmp_imagem = []  # rastrear para limpeza após build
 
     for idx, questao in enumerate(questoes_ordenadas, start=1):
@@ -348,10 +348,67 @@ def gerar_pdf_prova_aluno(
         alts = alternativas_por_questao.get(questao.id, [])
         for i, alt in enumerate(alts):
             letra = LETRAS[i] if i < len(LETRAS) else str(i + 1)
-            story.append(Paragraph(
-                f"( {letra} )&nbsp;&nbsp;{alt.texto}",
-                estilos["alternativa"],
-            ))
+
+            # Imagem da alternativa (se houver)
+            if alt.imagem_url:
+                tmp_alt_path = None
+                try:
+                    suffix = ".jpg" if "jpg" in alt.imagem_url.lower() else ".png"
+                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_alt:
+                        tmp_alt_path = tmp_alt.name
+                    urllib.request.urlretrieve(alt.imagem_url, tmp_alt_path)
+                    arquivos_tmp_imagem.append(tmp_alt_path)
+
+                    from PIL import Image as PILImage
+                    with PILImage.open(tmp_alt_path) as pil_alt:
+                        orig_w, orig_h = pil_alt.size
+
+                    # Alternativas ficam menores que o enunciado
+                    max_w = 8 * cm
+                    max_h = 5 * cm
+                    ratio = min(max_w / orig_w, max_h / orig_h)
+                    draw_w = orig_w * ratio
+                    draw_h = orig_h * ratio
+
+                    alt_img = RLImage(tmp_alt_path, width=draw_w, height=draw_h)
+
+                    # Linha com letra + imagem lado a lado
+                    alt_table = Table(
+                        [[
+                            Paragraph(f"( {letra} )", estilos["alternativa"]),
+                            alt_img,
+                            Paragraph(alt.texto or "", estilos["alternativa"]) if alt.texto else Paragraph("", estilos["alternativa"]),
+                        ]],
+                        colWidths=[1.2 * cm, draw_w + 6, None],
+                        hAlign="LEFT",
+                    )
+                    alt_table.setStyle(TableStyle([
+                        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+                        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+                        ("TOPPADDING",    (0, 0), (-1, -1), 4),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ]))
+                    story.append(alt_table)
+
+                except Exception as alt_img_err:
+                    print(f"Erro ao carregar imagem da alternativa {alt.id}: {alt_img_err}")
+                    # Fallback: exibe como texto simples
+                    story.append(Paragraph(
+                        f"( {letra} )&nbsp;&nbsp;{alt.texto or '[imagem indisponível]'}",
+                        estilos["alternativa"],
+                    ))
+                    if tmp_alt_path and os.path.exists(tmp_alt_path):
+                        try:
+                            os.unlink(tmp_alt_path)
+                        except Exception:
+                            pass
+            else:
+                # Sem imagem
+                story.append(Paragraph(
+                    f"( {letra} )&nbsp;&nbsp;{alt.texto}",
+                    estilos["alternativa"],
+                ))
 
         story.append(Spacer(1, 12))
 
@@ -362,7 +419,7 @@ def gerar_pdf_prova_aluno(
                 color=BORDA, spaceAfter=12,
             ))
 
-    # ── Rodapé do documento ───────────────────────────────────────────────
+    # Rodapé do documento
     story.append(Spacer(1, 20))
     story.append(HRFlowable(width="100%", thickness=0.5, color=BORDA, spaceAfter=8))
     story.append(Paragraph(
@@ -371,7 +428,7 @@ def gerar_pdf_prova_aluno(
         estilos["rodape"],
     ))
 
-    # ── Build do PDF ──────────────────────────────────────────────────────
+    # Build do PDF
     doc.build(story, onFirstPage=_borda_prova, onLaterPages=_borda_prova)
 
     # Limpeza dos arquivos temporários de imagem APÓS o build
@@ -384,8 +441,7 @@ def gerar_pdf_prova_aluno(
 
     return buf.getvalue()
 
-
-# ── Orquestrador ─────────────────────────────────────────────────────────────
+# Orquestrador
 
 def exportar_prova_para_alunos(
     prova_id: int,

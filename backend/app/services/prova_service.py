@@ -16,6 +16,8 @@ def criar_prova(dados: schemas.ProvaCreate, criado_por: int, db: Session) -> mod
         tipo=dados.tipo,
         nota_minima=dados.nota_minima,
         tempo_limite=dados.tempo_limite,
+        data_inicio=dados.data_inicio,
+        data_fim=dados.data_fim,
         data_inicio_inscricao=dados.data_inicio_inscricao,
         data_fim_inscricao=dados.data_fim_inscricao,
         status="RASCUNHO",
@@ -36,10 +38,7 @@ def listar_provas(
     skip: int = 0,
     limit: int = 20,
 ) -> dict:
-    """
-    Listagem administrativa — admin vê tudo (incluindo rascunhos).
-    Aluno usa listar_provas_aluno().
-    """
+    
     query = db.query(models.Prova).filter(models.Prova.deleted == False)
 
     if usuario.perfil != "ADMIN":
@@ -55,9 +54,14 @@ def listar_provas(
         query = query.filter(models.Prova.tipo == tipo)
 
     total = query.count()
-    provas = query.order_by(models.Prova.created_at.desc()).offset(skip).limit(limit).all()
+    provas = (
+        query.order_by(models.Prova.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-    return {"total": total, "provas": provas}
+    return {"total": total, "skip": skip, "limit": limit, "provas": provas}
 
 
 def listar_provas_aluno(
@@ -70,18 +74,9 @@ def listar_provas_aluno(
 ) -> dict:
     """
     US14 — Provas disponíveis para o aluno.
-
-    Regras aplicadas:
-    1. Apenas PUBLICADAS.
-    2. Dentro do período de inscrição (data_inicio_inscricao <= agora <= data_fim_inscricao),
-       ou sem período definido.
-    3. Nível compatível com o perfil do aluno — ou nível escolhido explicitamente.
-    4. Exclui provas que o aluno já CONCLUIU (tentativa com status CONCLUIDA).
-    5. Exclui provas que o aluno tem tentativa EM_ANDAMENTO (já iniciou).
     """
     agora = datetime.now(timezone.utc)
 
-    # Sub-query: IDs de provas que o aluno já concluiu ou tem em andamento
     tentativas_aluno = (
         db.query(models.Tentativa.prova_id)
         .filter(
@@ -91,29 +86,21 @@ def listar_provas_aluno(
         .subquery()
     )
 
-    query = (
-        db.query(models.Prova)
-        .filter(
-            models.Prova.deleted == False,
-            models.Prova.status == "PUBLICADA",
-            # Exclui provas já realizadas / em andamento
-            models.Prova.id.notin_(tentativas_aluno),
-        )
+    query = db.query(models.Prova).filter(
+        models.Prova.deleted == False,
+        models.Prova.status == "PUBLICADA",
+        models.Prova.id.notin_(tentativas_aluno),
     )
 
-    # Filtro de período de inscrição:
-    # - Se data_inicio_inscricao estiver definida, ela deve ser <= agora
-    # - Se data_fim_inscricao estiver definida, ela deve ser >= agora
     query = query.filter(
-        (models.Prova.data_inicio_inscricao == None) |
-        (models.Prova.data_inicio_inscricao <= agora)
+        (models.Prova.data_inicio_inscricao == None)
+        | (models.Prova.data_inicio_inscricao <= agora)
     )
     query = query.filter(
-        (models.Prova.data_fim_inscricao == None) |
-        (models.Prova.data_fim_inscricao >= agora)
+        (models.Prova.data_fim_inscricao == None)
+        | (models.Prova.data_fim_inscricao >= agora)
     )
 
-    # Nível: usa o do filtro explícito ou o do perfil do aluno
     nivel_filtro = nivel or aluno.nivel
     if nivel_filtro:
         query = query.filter(models.Prova.nivel == nivel_filtro)
@@ -122,37 +109,47 @@ def listar_provas_aluno(
         query = query.filter(models.Prova.tipo == tipo)
 
     total = query.count()
-    provas = query.order_by(models.Prova.data_fim_inscricao.asc().nullslast()).offset(skip).limit(limit).all()
+    provas = (
+        query.order_by(models.Prova.data_fim_inscricao.asc().nullslast())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
-    # Monta response enriquecido com total de questões e dias restantes
     items = []
     for prova in provas:
-        total_questoes = db.query(func.count(models.Questao.id)).filter(
-            models.Questao.prova_id == prova.id
-        ).scalar()
+        total_questoes = (
+            db.query(func.count(models.Questao.id))
+            .filter(models.Questao.prova_id == prova.id)
+            .scalar()
+        )
 
         dias_restantes = None
         if prova.data_fim_inscricao:
             delta = prova.data_fim_inscricao.replace(tzinfo=timezone.utc) - agora
             dias_restantes = max(0, delta.days)
 
-        items.append(schemas.ProvaDisponivelResponse(
-            id=prova.id,
-            titulo=prova.titulo,
-            descricao=prova.descricao,
-            nivel=prova.nivel,
-            serie=prova.serie,
-            tipo=prova.tipo,
-            nota_minima=prova.nota_minima,
-            tempo_limite=prova.tempo_limite,
-            data_inicio_inscricao=prova.data_inicio_inscricao,
-            data_fim_inscricao=prova.data_fim_inscricao,
-            status=prova.status,
-            created_at=prova.created_at,
-            criado_por=prova.criado_por,
-            total_questoes=total_questoes,
-            dias_restantes=dias_restantes,
-        ))
+        items.append(
+            schemas.ProvaDisponivelResponse(
+                id=prova.id,
+                titulo=prova.titulo,
+                descricao=prova.descricao,
+                nivel=prova.nivel,
+                serie=prova.serie,
+                tipo=prova.tipo,
+                nota_minima=prova.nota_minima,
+                tempo_limite=prova.tempo_limite,
+                data_inicio=prova.data_inicio,
+                data_fim=prova.data_fim,
+                data_inicio_inscricao=prova.data_inicio_inscricao,
+                data_fim_inscricao=prova.data_fim_inscricao,
+                status=prova.status,
+                created_at=prova.created_at,
+                criado_por=prova.criado_por,
+                total_questoes=total_questoes,
+                dias_restantes=dias_restantes,
+            )
+        )
 
     return {"total": total, "skip": skip, "limit": limit, "provas": items}
 
@@ -164,10 +161,14 @@ def buscar_prova_por_id(prova_id: int, usuario: models.Usuario, db: Session) -> 
     ).first()
 
     if not prova:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada."
+        )
 
     if usuario.perfil != "ADMIN" and prova.status != "PUBLICADA":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado."
+        )
 
     return prova
 
@@ -179,7 +180,9 @@ def editar_prova(prova_id: int, dados: schemas.ProvaUpdate, db: Session) -> mode
     ).first()
 
     if not prova:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada."
+        )
 
     if prova.status == "PUBLICADA":
         raise HTTPException(
@@ -213,7 +216,9 @@ def deletar_prova(prova_id: int, db: Session) -> None:
     ).first()
 
     if not prova:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada."
+        )
 
     tentativas = db.query(models.Tentativa).filter(
         models.Tentativa.prova_id == prova_id
@@ -236,12 +241,13 @@ def publicar_prova(prova_id: int, db: Session) -> models.Prova:
     ).first()
 
     if not prova:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada."
+        )
 
     if prova.status == "PUBLICADA":
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Prova já está publicada.",
+            status_code=status.HTTP_409_CONFLICT, detail="Prova já está publicada."
         )
 
     total_questoes = db.query(models.Questao).filter(
