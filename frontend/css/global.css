@@ -1,1 +1,11 @@
 /* Css Global */
+:root{
+    --primary-color: #1E5AA8;
+    --success-color: #22C55E;
+    --error-color: #EF4444;
+    --warning-color: #F2C94C;
+    --border-color: #E2E8F0;
+    --primary-text-color: #0F172A;
+    --text-secondary-color: #64748B;
+    
+}
