@@ -33,3 +33,5 @@ def health_check():
     return {"status": "ok"}
 
 app.include_router(auth_router)
+from app.routers import questoes
+app.include_router(questoes.router)

@@ -1,0 +1,239 @@
+
+/* Layout admin */
+:root{
+  --admin-page-gap: var(--space-5);
+}
+
+/* Componentes reusáveis (admin) */
+:root{
+  --eja-min-font: 18px;
+  --eja-min-button: 44px;
+}
+
+.admin-page *{ font-size: inherit; }
+
+/* Acessibilidade (EJA) */
+body[data-mode="eja"] .admin-nav a,
+body.eja .admin-nav a,
+body[data-mode="eja"] .admin-actions a,
+body.eja .admin-actions a,
+body[data-mode="eja"] .admin-actions button,
+body.eja .admin-actions button{
+  min-height: var(--eja-min-button);
+  min-width: var(--eja-min-button);
+  font-size: var(--eja-min-font);
+}
+
+body[data-mode="eja"] .card-value,
+body.eja .card-value{
+  font-size: 28px;
+}
+
+/* Mobile: evita header muito alto e mantém layout simples */
+@media (max-width: 480px){
+  .admin-header{ padding: 16px 14px; }
+  .admin-title{ font-size: 1.25rem; }
+  .admin-subtitle{ font-size: 0.95rem; }
+  th, td{ padding: 12px; }
+}
+
+
+.admin-page{
+  padding: var(--admin-page-gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.admin-header{
+  padding: var(--space-5);
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  background: rgba(10, 191, 247, 0.18);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+
+
+.admin-brand{ max-width: 520px; }
+
+.admin-title{
+  font-size: 1.6rem;
+  color: var(--brand-blue);
+  margin: 0;
+}
+
+.admin-title span{
+  font-size: 0.95rem;
+  color: rgba(11,87,197,0.85);
+  font-weight: 700;
+}
+
+.admin-subtitle{
+  margin: 6px 0 0;
+  color: rgba(0,0,0,0.6);
+  font-size: 0.95rem;
+}
+
+.admin-nav{
+  display:flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.admin-nav a{
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #1f2937;
+  background: rgba(99, 161, 233, 0.95);
+  border: 1px solid rgba(0,0,0,0.08);
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+
+.admin-nav a.is-active,
+.admin-nav a:hover,
+.admin-nav a:focus{
+  background: rgb(233, 253, 161);
+  color: #000;
+  border-color: rgba(0,0,0,0.2);
+}
+
+
+.admin-section{
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.admin-section-header{
+  display:flex;
+  align-items:flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.section-title{
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-subtitle{
+  margin: 0;
+  color: rgba(0,0,0,0.6);
+  font-size: 0.95rem;
+}
+
+.admin-card{
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(0,0,0,0.08);
+  padding: var(--space-4);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+}
+
+.card-title{
+  margin: 0 0 var(--space-2);
+  font-size: 1rem;
+  color: rgba(0,0,0,0.65);
+}
+
+.card-value{
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--brand-blue);
+  letter-spacing: 0.5px;
+}
+
+.card-hint{
+  margin: 10px 0 0;
+  color: rgba(0,0,0,0.55);
+  font-size: 0.95rem;
+}
+
+
+/* Tabelas */
+.table-wrap{
+  width: 100%;
+  overflow-x: auto;
+}
+
+table{
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+th, td{
+  padding: 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  text-align: left;
+}
+
+th{
+  background: rgba(11,87,197,0.08);
+  color: var(--brand-blue);
+  font-weight: 800;
+}
+
+tbody tr:hover{
+  background: rgba(11,87,197,0.04);
+}
+
+/* Ações */
+.admin-actions{
+  display:flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.admin-actions a,
+.admin-actions button{
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+
+/* Cards admin */
+.admin-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.admin-card{
+  composes: card;
+}
+
+/* Modo EJA: reforços */
+body[data-mode="eja"] .admin-card,
+body.eja .admin-card,
+body[data-mode="eja"] table,
+body.eja table{
+  border-width: 3px;
+  border-color: #000;
+}
+
+body[data-mode="eja"] th,
+body.eja th{
+  background: #fff;
+  color: #000;
+}
+
+/* Botões*/
+body[data-mode="eja"] .admin-actions,
+body.eja .admin-actions{
+  gap: var(--space-3);
+}
+

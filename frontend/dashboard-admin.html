@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Dashboard Admin - AvaliaEdu</title>
+
+  <link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div class="admin-brand">
+      <h1 class="admin-title">AvaliaEdu <span>Admin</span></h1>
+      <p class="admin-subtitle">Visão geral do sistema</p>
+    </div>
+
+    <nav class="admin-nav" aria-label="Menu admin">
+      <a href="dashboard-admin.html" class="is-active">Dashboard</a>
+      <a href="#">Usuários</a>
+      <a href="#">Provas</a>
+      <a href="#">Questões</a>
+      <a href="tela_login.html">Sair</a>
+    </nav>
+  </header>
+
+  <main class="admin-page">
+    <section class="admin-grid" aria-label="Resumo">
+      <article class="admin-card">
+        <h2 class="card-title">Total de Usuários</h2>
+        <p class="card-value" id="kpi-users">—</p>
+        <p class="card-hint">Dados em tempo real (futuro)</p>
+      </article>
+
+      <article class="admin-card">
+        <h2 class="card-title">Total de Provas</h2>
+        <p class="card-value" id="kpi-provas">—</p>
+        <p class="card-hint">Gerencie provas e ciclos</p>
+      </article>
+
+      <article class="admin-card">
+        <h2 class="card-title">Total de Questões</h2>
+        <p class="card-value" id="kpi-questoes">—</p>
+        <p class="card-hint">Catálogo de questões</p>
+      </article>
+
+      <article class="admin-card">
+        <h2 class="card-title">Atividade Recente</h2>
+        <p class="card-value" id="kpi-activity">—</p>
+        <p class="card-hint">Últimas operações do admin</p>
+      </article>
+    </section>
+
+    <section class="admin-section" aria-label="Tabelas">
+      <div class="admin-section-header">
+        <h2 class="section-title">Atalhos</h2>
+        <p class="section-subtitle">Links simples para ações comuns</p>
+      </div>
+
+      <div class="admin-actions" role="group" aria-label="Ações do admin">
+        <a class="action-btn" href="#">Criar Usuário</a>
+        <a class="action-btn" href="#">Nova Prova</a>
+        <a class="action-btn" href="#">Importar Questões</a>
+        <a class="action-btn" href="#">Gerar Certificados</a>
+      </div>
+    </section>
+
+    <section class="admin-section" aria-label="Lista">
+      <div class="admin-section-header">
+        <h2 class="section-title">Últimos registros (exemplo)</h2>
+        <p class="section-subtitle">Estrutura pronta para receber dados da API</p>
+      </div>
+
+      <div class="table-wrap" tabindex="0" aria-label="Tabela de registros">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Descrição</th>
+              <th>Responsável</th>
+              <th>Quando</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Prova</td>
+              <td>Prova criada</td>
+              <td>admin</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Questões</td>
+              <td>Questões importadas</td>
+              <td>admin</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Usuários</td>
+              <td>Cadastro aprovado</td>
+              <td>admin</td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="admin-footer">
+    <p>Squad 32 — Todos os direitos reservados &copy; 2026</p>
+  </footer>
+
+  <script src="./js/admin.js"></script>
+</body>
+</html>
+

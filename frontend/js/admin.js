@@ -1,20 +1,15 @@
-async function login() {
-
-    const email = document.getElementById("email").value;
-    const senha = document.getElementById("senha").value;
-
-    const resposta = await fetch("http://localhost:8000/login", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            email: email,
-            senha: senha
-        })
+ // Deixar o dashboard integrar com a API futuramente.
+(function () {
+  document.addEventListener('DOMContentLoaded', () => {
+    // substituir '—' por dados reais.
+    const ids = ['kpi-users', 'kpi-provas', 'kpi-questoes', 'kpi-activity'];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.textContent.trim() === '' || el.textContent.trim() === '—') {
+        el.textContent = '—';
+      }
     });
+  });
+})();
 
-    const dados = await resposta.json();
-
-    console.log(dados);
-}

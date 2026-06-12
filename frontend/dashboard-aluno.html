@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard do Aluno - AvaliaEdu</title>
+
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/aluno.css">
+</head>
+<body>
+
+    <!-- MENU LATERAL -->
+    <aside class="sidebar">
+
+        <h2>AvaliaEdu</h2>
+
+        <nav>
+            <ul>
+                <li><a href="#provas">Provas Disponíveis</a></li>
+                <li><a href="#calendario">Calendário</a></li>
+                <li><a href="#simulado">Simulado Atual</a></li>
+                <li><a href="#historico-simulados">Histórico Simulados</a></li>
+                <li><a href="#historico-certificacoes">Certificações</a></li>
+                <li><a href="#locais">Locais de Prova</a></li>
+                <li><a href="#perfil">Meu Perfil</a></li>
+            </ul>
+        </nav>
+
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="dashboard">
+
+        <header class="dashboard-header">
+            <h1>Bem-vindo(a), Aluno!</h1>
+            <button>Ver Perfil</button>
+        </header>
+
+        <!-- PROVAS -->
+        <section id="provas" class="card">
+            <h2> Provas Disponíveis</h2>
+
+            <input type="text" placeholder="Pesquisar matéria">
+
+            <div class="prova-item">
+                <h3>Matemática</h3>
+                <p>Data: 20/06/2026</p>
+            </div>
+
+            <div class="prova-item">
+                <h3>Português</h3>
+                <p>Data: 22/06/2026</p>
+            </div>
+        </section>
+
+        <!-- CALENDÁRIO -->
+        <section id="calendario" class="card">
+            <h2> Calendário de Provas</h2>
+
+            <p>Calendário será exibido aqui.</p>
+        </section>
+
+        <!-- SIMULADO -->
+        <section id="simulado" class="card">
+            <h2> Simulado em Andamento</h2>
+
+            <p>Nenhum simulado ativo.</p>
+        </section>
+
+        <!-- HISTÓRICO -->
+        <section id="historico-simulados" class="card">
+            <h2> Histórico de Simulados</h2>
+
+            <table>
+                <tr>
+                    <th>Data</th>
+                    <th>Nota</th>
+                </tr>
+
+                <tr>
+                    <td>10/05/2026</td>
+                    <td>8,5</td>
+                </tr>
+
+                <tr>
+                    <td>15/05/2026</td>
+                    <td>9,0</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- CERTIFICAÇÕES -->
+        <section id="historico-certificacoes" class="card">
+            <h2> Histórico de Certificações</h2>
+
+            <ul>
+                <li>Certificação Básica - Concluída</li>
+                <li>Certificação Intermediária - Em andamento</li>
+            </ul>
+        </section>
+
+        <!-- LOCAIS -->
+        <section id="locais" class="card">
+            <h2> Locais de Prova</h2>
+
+            <p>Lista de locais disponíveis.</p>
+        </section>
+
+        <!-- PERFIL -->
+        <section id="perfil" class="card">
+            <h2> Meu Perfil</h2>
+
+            <p><strong>Nome:</strong> Ex: Maria Eduarda</p>
+            <p><strong>Email:</strong> aluno@email.com</p>
+            <p><strong>Série:</strong> 3º Ano</p>
+            <p><strong>Nível:</strong> Intermediário</p>
+        </section>
+
+    </main>
+
+</body>
+</html>

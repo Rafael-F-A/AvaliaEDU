@@ -1,0 +1,90 @@
+/* 
+   Estilos para páginas de aluno
+  */
+
+.aluno-page{
+  padding: var(--space-5);
+}
+
+.aluno-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.aluno-title{
+  font-size: 1.6rem;
+  color: var(--brand-blue);
+}
+
+/* Conteúdo do aluno */
+.aluno-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.aluno-card{
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.aluno-card h3{
+  color: var(--brand-blue);
+  margin-bottom: var(--space-2);
+}
+
+.aluno-card p{
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+/* Botões/links do aluno */
+.aluno-actions{
+  display:flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.aluno-actions a,
+.aluno-actions button{
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+
+/* EJA: layout simples e alto contraste */
+body[data-mode="eja"] .aluno-card,
+body.eja .aluno-card{
+  border: 3px solid #000;
+  box-shadow: none;
+}
+
+body[data-mode="eja"] .aluno-card p,
+body.eja .aluno-card p{
+  color: #000;
+}
+
+/* Responsividade */
+@media (max-width: 768px){
+  .aluno-page{ padding: var(--space-4); }
+}
+
+/* Mobile (375px): garante leitura e botões confortáveis */
+@media (max-width: 480px){
+  html{ font-size: 18px; }
+
+  .aluno-page{ padding: var(--space-3); }
+  .aluno-actions a,
+  .aluno-actions button{
+    min-height: 44px;
+    min-width: 44px;
+    padding: 14px 16px;
+  }
+}
+
+
