@@ -6,16 +6,15 @@ import os
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-
+ 
 from app.database import get_db
 from app import models
-from app.routers import auth, provas, questoes, simulados, certificacoes, geracao, pdf, geolocalizacao
+from app.routers import auth, provas, questoes, simulados, certificacoes, geracao, pdf, geolocalizacao, usuarios, reservas
 from app.dependencies import get_usuario_admin
 from app.routers.relatorios import router as relatorios_router
-
+ 
 load_dotenv()
-
-# Configuração do rate limiter
+ 
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 app = FastAPI(
     title="Sistema de Gestão de Provas - SEED",
@@ -24,8 +23,7 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# CORS
+ 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -35,27 +33,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclusão dos routers
 app.include_router(auth.router)
 app.include_router(provas.router)
 app.include_router(questoes.router)
 app.include_router(simulados.router)
 app.include_router(certificacoes.router)
 app.include_router(geracao.router)
-app.include_router(geracao.router)
 app.include_router(pdf.router)
 app.include_router(geolocalizacao.router)
 app.include_router(relatorios_router)
+app.include_router(usuarios.router)
+app.include_router(reservas.router)
 
-# Endpoints públicos
 @app.get("/", tags=["Status"])
 def root():
     return {"message": "API Squad 32 - Sistema de Gestão de Provas SEED"}
-
+ 
+ 
 @app.get("/health", tags=["Status"])
 def health_check():
     return {"status": "ok"}
-
+ 
+ 
+@app.get("/admin/usuarios", tags=["Admin"], dependencies=[Depends(get_usuario_admin)])
+def listar_usuarios(db: Session = Depends(get_db)):
+    usuarios = db.query(models.Usuario).all()
+    return {
+        "total": len(usuarios),
+        "usuarios": [
+            {
+                "id": u.id,
+                "nome": u.nome,
+                "email": u.email,
+                "perfil": u.perfil,
+                "status": u.status,
+                "nivel": u.nivel,
+                "serie": u.serie,
+                "created_at": u.created_at,
+            }
+            for u in usuarios
+        ],
+    }
 @app.get("/admin/usuarios", tags=["Admin"], dependencies=[Depends(get_usuario_admin)])
 def listar_usuarios(db: Session = Depends(get_db)):
     usuarios = db.query(models.Usuario).all()

@@ -1,32 +1,33 @@
 import os
 import tempfile
-from fastapi import UploadFile
-from app.utils.storage import upload_imagem_questao
 from typing import Optional
+
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 
 from app import models, schemas
+from app.utils.storage import upload_imagem_questao, upload_imagem_alternativa
 
+EXTENSOES_PERMITIDAS = {"image/jpeg", "image/png", "image/webp"}
+TAMANHO_MAXIMO = 5 * 1024 * 1024  # 5 MB
+
+# Validação de alternativas
 
 def _validar_alternativas(alternativas: list) -> None:
-    """
-    Regras de negócio da US10 (centralizadas aqui para reuso):
-    - Mínimo 2 alternativas
-    - Exatamente 1 correta
-    - Nenhuma com texto vazio
-    """
     if len(alternativas) < 2:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="A questão deve ter no mínimo 2 alternativas.",
         )
 
-    textos_vazios = [a for a in alternativas if not a.texto or not a.texto.strip()]
+    textos_vazios = [
+        a for a in alternativas
+        if (not a.texto or not a.texto.strip()) and not a.imagem_url
+    ]
     if textos_vazios:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Nenhuma alternativa pode ter texto vazio.",
+            detail="Nenhuma alternativa pode ter texto e imagem vazios ao mesmo tempo.",
         )
 
     total_corretas = sum(1 for a in alternativas if a.is_correta)
@@ -40,18 +41,15 @@ def _validar_alternativas(alternativas: list) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"A questão deve ter exatamente 1 alternativa correta. {total_corretas} foram marcadas.",
         )
-
+    
+# CRUD de questões
 
 def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
-    """
-    Cria uma questão com suas alternativas.
-    Valida regras de negócio antes de persistir.
-    """
     _validar_alternativas(dados.alternativas)
 
     prova = db.query(models.Prova).filter(models.Prova.id == dados.prova_id).first()
     if not prova:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada.")
+        raise HTTPException(status_code=404, detail="Prova não encontrada.")
 
     nova_questao = models.Questao(
         enunciado=dados.enunciado,
@@ -64,10 +62,11 @@ def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
 
     for idx, alt in enumerate(dados.alternativas):
         db.add(models.Alternativa(
-            texto=alt.texto.strip(),
+            texto=alt.texto.strip() if alt.texto else "",
             questao_id=nova_questao.id,
             is_correta=alt.is_correta,
             ordem=alt.ordem if alt.ordem is not None else idx,
+            imagem_url=alt.imagem_url,   # NOVO
         ))
 
     db.commit()
@@ -76,9 +75,6 @@ def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
 
 
 def listar_questoes(db: Session, prova_id: Optional[int] = None) -> list:
-    """
-    Lista questões, com filtro opcional por prova.
-    """
     query = db.query(models.Questao)
     if prova_id:
         query = query.filter(models.Questao.prova_id == prova_id)
@@ -86,31 +82,27 @@ def listar_questoes(db: Session, prova_id: Optional[int] = None) -> list:
 
 
 def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
-    """
-    Atualiza enunciado, nível de dificuldade e alternativas.
-    As mesmas validações da criação se aplicam aqui.
-    """
     _validar_alternativas(dados.alternativas)
 
     questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
     if not questao:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questão não encontrada.")
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
 
     questao.enunciado = dados.enunciado
     questao.nivel_dificuldade = dados.nivel_dificuldade
     questao.imagem_url = dados.imagem_url
 
-    # Remove as alternativas antigas e recria
     db.query(models.Alternativa).filter(
         models.Alternativa.questao_id == questao_id
     ).delete()
 
     for idx, alt in enumerate(dados.alternativas):
         db.add(models.Alternativa(
-            texto=alt.texto.strip(),
+            texto=alt.texto.strip() if alt.texto else "",
             questao_id=questao.id,
             is_correta=alt.is_correta,
             ordem=alt.ordem if alt.ordem is not None else idx,
+            imagem_url=alt.imagem_url,   # NOVO
         ))
 
     db.commit()
@@ -119,25 +111,17 @@ def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -
 
 
 def excluir_questao(questao_id: int, db: Session) -> None:
-    """
-    Remove uma questão e suas alternativas (cascade no model).
-    """
     questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
     if not questao:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questão não encontrada.")
-
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
     db.delete(questao)
     db.commit()
 
 
 def listar_alternativas(questao_id: int, db: Session) -> list:
-    """
-    Retorna as alternativas de uma questão ordenadas por 'ordem'.
-    """
     questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
     if not questao:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Questão não encontrada.")
-
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
     return (
         db.query(models.Alternativa)
         .filter(models.Alternativa.questao_id == questao_id)
@@ -145,23 +129,13 @@ def listar_alternativas(questao_id: int, db: Session) -> list:
         .all()
     )
 
-def fazer_upload_imagem(questao_id: int, arquivo: UploadFile, db) -> str:
-    """
-    Valida, salva temporariamente e faz upload da imagem para o Supabase.
-    Atualiza imagem_url na questão.
-    """
-    EXTENSOES_PERMITIDAS = {"image/jpeg", "image/png", "image/webp"}
-    TAMANHO_MAXIMO = 5 * 1024 * 1024  # 5MB
+# Upload de imagem de questão
 
+def fazer_upload_imagem(questao_id: int, arquivo: UploadFile, db: Session) -> str:
     if arquivo.content_type not in EXTENSOES_PERMITIDAS:
-        raise HTTPException(
-            status_code=400,
-            detail="Formato inválido. Use PNG, JPG ou WEBP.",
-        )
+        raise HTTPException(status_code=400, detail="Formato inválido. Use PNG, JPG ou WEBP.")
 
-    questao = db.query(models.Questao).filter(
-        models.Questao.id == questao_id
-    ).first()
+    questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
     if not questao:
         raise HTTPException(status_code=404, detail="Questão não encontrada.")
 
@@ -169,13 +143,8 @@ def fazer_upload_imagem(questao_id: int, arquivo: UploadFile, db) -> str:
 
     with tempfile.NamedTemporaryFile(suffix=f".{extensao}", delete=False) as tmp:
         conteudo = arquivo.file.read()
-
         if len(conteudo) > TAMANHO_MAXIMO:
-            raise HTTPException(
-                status_code=400,
-                detail="Imagem muito grande. Máximo 5MB.",
-            )
-
+            raise HTTPException(status_code=400, detail="Imagem muito grande. Máximo 5MB.")
         tmp.write(conteudo)
         tmp_path = tmp.name
 
@@ -187,5 +156,85 @@ def fazer_upload_imagem(questao_id: int, arquivo: UploadFile, db) -> str:
     questao.imagem_url = url
     db.commit()
     db.refresh(questao)
-
     return url
+
+# Upload de imagem de alternativa individual
+
+def fazer_upload_imagem_alternativa(
+    questao_id: int,
+    alternativa_id: int,
+    arquivo: UploadFile,
+    db: Session,
+) -> str:
+    """
+    Faz upload de imagem para uma alternativa específica.
+
+    Valida que:
+    - Alternativa existe e pertence à questão informada
+    - Formato é PNG, JPG ou WEBP
+    - Tamanho máximo 5 MB
+
+    Atualiza alternativa.imagem_url e retorna a URL assinada.
+    """
+    if arquivo.content_type not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=400, detail="Formato inválido. Use PNG, JPG ou WEBP.")
+
+    # Verifica que a alternativa existe E pertence à questão correta
+    alternativa = db.query(models.Alternativa).filter(
+        models.Alternativa.id == alternativa_id,
+        models.Alternativa.questao_id == questao_id,
+    ).first()
+
+    if not alternativa:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Alternativa {alternativa_id} não encontrada na questão {questao_id}.",
+        )
+
+    extensao = arquivo.content_type.split("/")[1]
+
+    with tempfile.NamedTemporaryFile(suffix=f".{extensao}", delete=False) as tmp:
+        conteudo = arquivo.file.read()
+        if len(conteudo) > TAMANHO_MAXIMO:
+            raise HTTPException(status_code=400, detail="Imagem muito grande. Máximo 5 MB.")
+        tmp.write(conteudo)
+        tmp_path = tmp.name
+
+    try:
+        url = upload_imagem_alternativa(tmp_path, alternativa_id, extensao)
+    finally:
+        os.unlink(tmp_path)
+
+    alternativa.imagem_url = url
+    db.commit()
+    db.refresh(alternativa)
+    return url
+
+# Remover imagem de alternativa
+
+def remover_imagem_alternativa(
+    questao_id: int,
+    alternativa_id: int,
+    db: Session,
+) -> None:
+    """Remove o campo imagem_url da alternativa (não apaga do Storage)."""
+    alternativa = db.query(models.Alternativa).filter(
+        models.Alternativa.id == alternativa_id,
+        models.Alternativa.questao_id == questao_id,
+    ).first()
+
+    if not alternativa:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Alternativa {alternativa_id} não encontrada na questão {questao_id}.",
+        )
+
+    # Validação: alternativa não pode ficar sem texto E sem imagem
+    if not alternativa.texto or not alternativa.texto.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível remover a imagem de uma alternativa sem texto. Adicione um texto primeiro.",
+        )
+
+    alternativa.imagem_url = None
+    db.commit()
