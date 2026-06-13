@@ -14,7 +14,7 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer,
     HRFlowable, Table, TableStyle, PageBreak,
-    Image as RLImage,
+    Image as RLImage, KeepTogether,
 )
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -364,8 +364,8 @@ def gerar_pdf_prova_aluno(
                         orig_w, orig_h = pil_alt.size
 
                     # Alternativas ficam menores que o enunciado
-                    max_w = 8 * cm
-                    max_h = 5 * cm
+                    max_w = 3 * cm
+                    max_h = 2.2 * cm
                     ratio = min(max_w / orig_w, max_h / orig_h)
                     draw_w = orig_w * ratio
                     draw_h = orig_h * ratio
@@ -379,7 +379,7 @@ def gerar_pdf_prova_aluno(
                             alt_img,
                             Paragraph(alt.texto or "", estilos["alternativa"]) if alt.texto else Paragraph("", estilos["alternativa"]),
                         ]],
-                        colWidths=[1.2 * cm, draw_w + 6, None],
+                        colWidths=[2 * cm, draw_w + 6, None],
                         hAlign="LEFT",
                     )
                     alt_table.setStyle(TableStyle([
@@ -389,7 +389,7 @@ def gerar_pdf_prova_aluno(
                         ("TOPPADDING",    (0, 0), (-1, -1), 4),
                         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                     ]))
-                    story.append(alt_table)
+                    story.append(KeepTogether([alt_table]))
 
                 except Exception as alt_img_err:
                     print(f"Erro ao carregar imagem da alternativa {alt.id}: {alt_img_err}")

@@ -1,32 +1,3 @@
-/*const pages = {
-    'dashboard':      { title: 'Dashboard do admin',    sub: 'Visão de tarefas, banco de questões e agenda pessoal.' },
-    'banco-questoes': { title: 'Banco de questões',         sub: 'Gerencie todas as questões criadas.' },
-    'criar-questao':  { title: 'Criar questão',             sub: 'Adicione uma nova questão ao banco.' },
-    'gerar-prova':    { title: 'Gerar prova',               sub: 'Geração automática de provas com base em modelos.' },
-    'provas':         { title: 'Provas',                    sub: 'Visualize, edite e publique suas provas.' },
-    'calendario':     { title: 'Calendário',                sub: 'Acompanhe eventos e datas de provas.' },
-    'relatorios':     { title: 'Relatórios',                sub: 'Desempenho por turma, aluno e questão.' },
-    'locais':         { title: 'Locais',                    sub: 'Gerencie locais de aplicação de provas.' },
-    'perfil':         { title: 'Perfil',                    sub: 'Suas informações e preferências.' },
-  };
-
-  const items = document.querySelectorAll('.nav-item[data-page]');
-
-  items.forEach(item => {
-    item.addEventListener('click', () => {
-      const page = item.dataset.page;
-      if (page === 'sair') { alert('Saindo...'); return; }
-
-      // Update active state
-      items.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      // Update content area
-      const info = pages[page] || { title: page, sub: '' };
-      document.getElementById('page-title').textContent = info.title;
-      document.getElementById('page-subtitle').textContent = info.sub;
-    });
-  }); """ */
 /* ── ROUTER ─────────────────────────────────────────────── */
 const navItems = document.querySelectorAll('.nav-item[data-page]');
 
@@ -53,48 +24,41 @@ function handleImgSelect(input, previewId, dataId) {
   const file = input.files[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) { showToast('Selecione um arquivo de imagem.', 'error'); return; }
-  if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande (máx. 5MB).', 'error'); return; } 
+  if (file.size > 5 * 1024 * 1024) { showToast('Imagem muito grande (máx. 5MB).', 'error'); return; }
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    const preview = document.getElementById(previewId);
-    // Remove previous chip for same input
-    const existing = preview.querySelector('[data-input="' + input.id + '"]');
-    if (existing) existing.remove();
+  const preview = document.getElementById(previewId);
+  const existing = preview.querySelector('[data-input="' + input.id + '"]');
+  if (existing) existing.remove();
 
-    const chip = document.createElement('div');
-    chip.className = 'img-chip';
-    chip.dataset.input = input.id;
-    chip.innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      ${file.name.length > 18 ? file.name.slice(0,15)+'...' : file.name}
-      <button title="Remover imagem" onclick="removeImg(this,'${input.id}','${previewId}','${dataId}')">×</button>
-    `;
-    preview.appendChild(chip);
+  const chip = document.createElement('div');
+  chip.className = 'img-chip';
+  chip.dataset.input = input.id;
+  chip.innerHTML = `
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    ${file.name.length > 18 ? file.name.slice(0, 15) + '...' : file.name}
+    <button title="Remover imagem" onclick="removeImg(this,'${input.id}','${previewId}','${dataId}')">×</button>
+  `;
+  preview.appendChild(chip);
 
-    if (dataId) document.getElementById(dataId).value = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    // Store the file data in a hidden input for later upload
 }
 
 function removeImg(btn, inputId, previewId, dataId) {
   btn.closest('.img-chip').remove();
   document.getElementById(inputId).value = '';
-  if (dataId) document.getElementById(dataId).value = '';
 }
 
 /* ── ALTERNATIVAS ───────────────────────────────────────── */
 const ALT_LABELS = ['A', 'B', 'C', 'D'];
-let correctAnswer = -1; // index
+let correctAnswer = -1;
 
 function buildAlternativas() {
   const container = document.getElementById('alternativas-container');
-  const respOpts = document.getElementById('resposta-opts');
+  const respOpts  = document.getElementById('resposta-opts');
   container.innerHTML = '';
-  respOpts.innerHTML = '';
+  respOpts.innerHTML  = '';
 
   ALT_LABELS.forEach((lbl, i) => {
-    // Alt block
     const altDiv = document.createElement('div');
     altDiv.className = 'alt-item';
     altDiv.id = `alt-item-${i}`;
@@ -114,11 +78,9 @@ function buildAlternativas() {
           <div class="img-preview" id="alt-preview-${i}"></div>
         </div>
       </div>
-      <input type="hidden" id="alt-img-data-${i}" />
     `;
     container.appendChild(altDiv);
 
-    // Resposta correta option
     const opt = document.createElement('label');
     opt.className = 'cq-resposta-opt';
     opt.innerHTML = `<input type="radio" name="resposta-correta" value="${i}" /> ${lbl}`;
@@ -144,78 +106,170 @@ function updateStatus() {
   const alts = ALT_LABELS.map((_, i) => document.getElementById(`alt-text-${i}`)?.value.trim() || '');
   const allFilled = enunciado && alts.every(a => a) && correctAnswer >= 0;
   const badge = document.getElementById('status-badge');
+  if (!badge) return;
   if (allFilled) {
-    badge.className = 'status-badge ready';
-    badge.textContent = '⬤ Pronto para salvar';
+    badge.className  = 'status-badge ready';
+    badge.textContent = 'Pronto para salvar';
   } else {
-    badge.className = 'status-badge draft';
-    badge.textContent = '⬤ Rascunho';
+    badge.className  = 'status-badge draft';
+    badge.textContent = 'Rascunho';
   }
 }
 
-/* ── SAVE (POST /questoes/) ─────────────────────────────── */
+/* ── MULTIPART IMAGE UPLOAD HELPERS ─────────────────────── */
+
+/**
+ * Uploads a File object to POST /questoes/{questaoId}/imagem
+ * Returns the imagem_url from the response, or null on failure.
+ */
+async function uploadImagemQuestao(questaoId, file) {
+  const form = new FormData();
+  form.append('arquivo', file);
+
+  const res = await fetch(`/questoes/${questaoId}/imagem`, {
+    method: 'POST',
+    body: form,
+    // Do NOT set Content-Type — the browser sets it with the boundary.
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Erro ao enviar imagem da questão (HTTP ${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.imagem_url;
+}
+
+/**
+ * Uploads a File object to POST /questoes/{questaoId}/alternativas/{altId}/imagem
+ * Returns the imagem_url from the response, or null on failure.
+ */
+async function uploadImagemAlternativa(questaoId, alternativaId, file) {
+  const form = new FormData();
+  form.append('arquivo', file);
+
+  const res = await fetch(`/questoes/${questaoId}/alternativas/${alternativaId}/imagem`, {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Erro ao enviar imagem da alternativa ${alternativaId} (HTTP ${res.status})`);
+  }
+
+  const data = await res.json();
+  return data.imagem_url;
+}
+
+/* ── SAVE ───────────────────────────────────────────────── */
 document.getElementById('btn-salvar').addEventListener('click', async () => {
+
+  /* ── 1. Validate ── */
   const enunciado = document.getElementById('enunciado').value.trim();
   if (!enunciado) { showToast('Preencha o enunciado.', 'error'); return; }
   if (correctAnswer < 0) { showToast('Marque a resposta correta.', 'error'); return; }
 
-  const alternativas = ALT_LABELS.map((lbl, i) => {
-    const texto = document.getElementById(`alt-text-${i}`)?.value.trim() || '';
-    if (!texto) { showToast(`Preencha a alternativa ${lbl}.`, 'error'); throw new Error('alt vazia'); }
-    return {
-      texto,
-      is_correta: i === correctAnswer,
-      ordem: i,
-      imagem_url: document.getElementById(`alt-img-data-${i}`)?.value || null
-    };
-  });
-
-  const payload = {
-    enunciado,
-    prova_id: null,
-    nivel_dificuldade: document.getElementById('meta-dificuldade').value,
-    alternativas,
-    imagem_url: document.getElementById('enunciado-img-data')?.value || null
-  };
+  let alternativas;
+  try {
+    alternativas = ALT_LABELS.map((lbl, i) => {
+      const texto = document.getElementById(`alt-text-${i}`)?.value.trim() || '';
+      if (!texto) {
+        showToast(`Preencha a alternativa ${lbl}.`, 'error');
+        throw new Error('alternativa vazia');
+      }
+      return { texto, is_correta: i === correctAnswer, ordem: i };
+    });
+  } catch {
+    return; 
+  }
 
   const btn = document.getElementById('btn-salvar');
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = 'Salvando...';
 
   try {
+
+    /* ── 2. Create question  ── */
+    const payload = {
+      enunciado,
+      prova_id: null,
+      nivel_dificuldade: document.getElementById('meta-dificuldade').value,
+      alternativas,
+      
+    };
+
     const res = await fetch('/questoes/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
-    if (res.ok) {
-      showToast('Questão salva com sucesso!', 'success');
-      resetForm();
-    } else {
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showToast(err.detail || 'Erro ao salvar. Tente novamente.', 'error');
+      throw new Error(err.detail || `Erro ao salvar questão (HTTP ${res.status})`);
     }
-  } catch (e) {
-    // Demo mode: simulate success
-    showToast('Questão salva com sucesso! (demo)', 'success');
+
+    const questao = await res.json();
+    const questaoId = questao.id; 
+
+    /* ── 3. Upload question image (if any) ── */
+    const enunciadoImgInput = document.getElementById('enunciado-img');
+    if (enunciadoImgInput?.files?.[0]) {
+      try {
+        await uploadImagemQuestao(questaoId, enunciadoImgInput.files[0]);
+      } catch (e) {
+        // Non-fatal: question is already saved; warn the user but continue.
+        showToast(`Questão salva, mas ${e.message}`, 'error');
+      }
+    }
+
+    /* ── 4. Upload alternative images (if any) ── */
+
+    const altRespostas = questao.alternativas ?? [];
+
+    for (let i = 0; i < ALT_LABELS.length; i++) {
+      const altInput = document.getElementById(`alt-img-input-${i}`);
+      if (!altInput?.files?.[0]) continue;
+
+      // Match by ordem (index) — adjust if your API returns them in a different order.
+      const altData = altRespostas.find(a => a.ordem === i);
+      if (!altData?.id) {
+        showToast(`Não foi possível enviar imagem da alternativa ${ALT_LABELS[i]}: ID não encontrado.`, 'error');
+        continue;
+      }
+
+      try {
+        await uploadImagemAlternativa(questaoId, altData.id, altInput.files[0]);
+      } catch (e) {
+        showToast(`Alternativa ${ALT_LABELS[i]}: ${e.message}`, 'error');
+      }
+    }
+
+    showToast('Questão salva com sucesso!', 'success');
     resetForm();
+
+  } catch (e) {
+    showToast(e.message || 'Erro inesperado. Tente novamente.', 'error');
   } finally {
-    btn.disabled = false;
+    btn.disabled    = false;
     btn.textContent = 'Salvar questão';
   }
 });
 
+/* ── RESET ──────────────────────────────────────────────── */
 function resetForm() {
   document.getElementById('enunciado').value = '';
   document.getElementById('enunciado-preview').innerHTML = '';
-  document.getElementById('enunciado-img-data').value = '';
   document.getElementById('enunciado-img').value = '';
   correctAnswer = -1;
   buildAlternativas();
   document.querySelectorAll('.checklist input[type=checkbox]').forEach(c => c.checked = false);
-  document.getElementById('pub-banco').checked = true;
-  document.getElementById('pub-prova').checked = true;
+  const pubBanco = document.getElementById('pub-banco');
+  const pubProva = document.getElementById('pub-prova');
+  if (pubBanco) pubBanco.checked = true;
+  if (pubProva) pubProva.checked = true;
   updateStatus();
 }
 
