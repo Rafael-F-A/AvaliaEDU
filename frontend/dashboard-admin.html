@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Gestão — AvaliaEdu</title>
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div class="dashboard-layout">
+
+  <!-- ═══════════════════════════════════════
+       SIDEBAR
+  ═══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="#" class="sidebar-logo-name">
+        <span class="logo-avalia">Avalia</span><span class="logo-edu">Edu</span>
+      </a>
+      <span class="sidebar-role">Painel Gestão</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <ul>
+        <li>
+          <a href="#" data-section="dashboard" class="nav-link active">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8-8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+            </svg>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" data-section="provas" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+            </svg>
+            <span>Provas</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" data-section="usuarios" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+            </svg>
+            <span>Usuários</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" data-section="locais" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            </svg>
+            <span>Locais</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" data-section="componentes" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
+            </svg>
+            <span>Componentes</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" data-section="relatorios" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+            </svg>
+            <span>Relatórios</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="sidebar-username" id="sidebar-username">Carregando...</span>
+      <button class="btn-logout" id="btn-logout">Sair</button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════
+       CONTEÚDO PRINCIPAL
+  ═══════════════════════════════════════ -->
+  <div class="dashboard-main">
+
+    <!-- ─── SEÇÃO: DASHBOARD ─── -->
+    <section id="section-dashboard" class="dash-section">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Dashboard da gestão</h1>
+          <p class="page-subtitle">Visão consolidada de provas, usuários e relatórios.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary btn-sm" onclick="irPara('provas'); abrirModalNovaProva()">Nova prova</button>
+          <div class="user-avatar" id="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Métricas -->
+        <div class="metric-grid" id="dash-metrics">
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Provas ativas</span>
+              <span class="badge badge-publicada">Provas</span>
+            </div>
+            <div class="metric-value primary" id="dash-total-provas">—</div>
+            <div class="metric-sub" id="dash-sub-provas">Carregando...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Usuários</span>
+              <span class="badge badge-aluno">Base</span>
+            </div>
+            <div class="metric-value success" id="dash-total-usuarios">—</div>
+            <div class="metric-sub" id="dash-sub-usuarios">Carregando...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Locais cadastrados</span>
+              <span class="badge badge-simulado">Mapa</span>
+            </div>
+            <div class="metric-value cyan" id="dash-total-locais">—</div>
+            <div class="metric-sub">Locais de prova</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Tentativas</span>
+              <span class="badge badge-certificacao">Geral</span>
+            </div>
+            <div class="metric-value ia" id="dash-total-tentativas">—</div>
+            <div class="metric-sub">Realizadas na plataforma</div>
+          </div>
+        </div>
+
+        <!-- Grid inferior -->
+        <div class="two-col" style="gap:24px;">
+          <!-- Provas recentes -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Provas recentes</div>
+                <div class="card-subtitle">Últimas provas criadas ou publicadas.</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="irPara('provas')">Ver todas</button>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Título</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-provas-recentes">
+                  <tr><td colspan="3" class="table-empty">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Acesso rápido -->
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Acesso rápido</div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <button class="btn btn-primary" onclick="irPara('provas'); abrirModalNovaProva()">+ Nova prova</button>
+              <button class="btn btn-secondary" onclick="irPara('usuarios')">Gestão de usuários</button>
+              <button class="btn btn-secondary" onclick="irPara('locais')">Locais de prova</button>
+              <button class="btn btn-secondary" onclick="irPara('relatorios')">Relatórios e certificados</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: PROVAS ─── -->
+    <section id="section-provas" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Provas</h1>
+          <p class="page-subtitle">Gerencie simulados e certificações da plataforma.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" id="btn-nova-prova" onclick="abrirModalNovaProva()">+ Nova prova</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Filtros -->
+        <div class="filter-bar">
+          <div class="input-search" style="flex:1; min-width:220px;">
+            <span class="input-search-icon">🔍</span>
+            <input class="form-input" type="search" id="provas-busca" placeholder="Buscar por título...">
+          </div>
+          <div class="form-select-wrap">
+            <select class="form-select" id="provas-filtro-tipo" style="width:150px;">
+              <option value="">Todos os tipos</option>
+              <option value="SIMULADO">Simulado</option>
+              <option value="CERTIFICACAO">Certificação</option>
+            </select>
+          </div>
+          <div class="form-select-wrap">
+            <select class="form-select" id="provas-filtro-status" style="width:150px;">
+              <option value="">Todos os status</option>
+              <option value="RASCUNHO">Rascunho</option>
+              <option value="PUBLICADA">Publicada</option>
+            </select>
+          </div>
+          <div class="form-select-wrap">
+            <select class="form-select" id="provas-filtro-nivel" style="width:170px;">
+              <option value="">Todos os níveis</option>
+              <option value="FUNDAMENTAL_I">Fundamental I</option>
+              <option value="FUNDAMENTAL_II">Fundamental II</option>
+              <option value="MEDIO">Médio</option>
+              <option value="ENEM">ENEM</option>
+              <option value="EJA">EJA</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Título</th>
+                  <th>Nível / Série</th>
+                  <th>Tipo</th>
+                  <th>Questões</th>
+                  <th>Início</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="provas-tbody">
+                <tr><td colspan="7" class="table-empty">Carregando provas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="provas-pagination"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: QUESTÕES (subseção de provas) ─── -->
+    <section id="section-questoes" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <button class="btn btn-ghost btn-sm" onclick="irPara('provas')" style="margin-bottom:4px;">← Voltar às provas</button>
+          <h1 class="page-title" id="questoes-prova-titulo">Questões</h1>
+          <p class="page-subtitle" id="questoes-prova-sub">Gerencie as questões desta prova.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" onclick="abrirModalNovaQuestao()">+ Adicionar questão</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div id="questoes-lista" style="display:flex; flex-direction:column; gap:16px;">
+          <div class="table-empty">Carregando questões...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: USUÁRIOS ─── -->
+    <section id="section-usuarios" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Gestão de usuários</h1>
+          <p class="page-subtitle">Cadastro, filtros e ações para alunos e administradores.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" onclick="abrirModalNovoUsuario()">+ Cadastrar usuário</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Filtros -->
+        <div class="filter-bar">
+          <div class="input-search" style="flex:1; min-width:220px;">
+            <span class="input-search-icon">🔍</span>
+            <input class="form-input" type="search" id="usuarios-busca" placeholder="Nome ou e-mail...">
+          </div>
+          <div class="form-select-wrap">
+            <select class="form-select" id="usuarios-filtro-perfil" style="width:140px;">
+              <option value="">Todos os perfis</option>
+              <option value="ADMIN">Admin</option>
+              <option value="ALUNO">Aluno</option>
+            </select>
+          </div>
+          <div class="form-select-wrap">
+            <select class="form-select" id="usuarios-filtro-status" style="width:140px;">
+              <option value="">Todos os status</option>
+              <option value="ATIVO">Ativos</option>
+              <option value="BLOQUEADO">Bloqueados</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Perfil</th>
+                  <th>Nível</th>
+                  <th>Status</th>
+                  <th>Cadastro</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="usuarios-tbody">
+                <tr><td colspan="7" class="table-empty">Carregando usuários...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="usuarios-pagination"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: LOCAIS ─── -->
+    <section id="section-locais" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Locais de prova</h1>
+          <p class="page-subtitle">Espaços físicos cadastrados para realização de provas presenciais.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" onclick="abrirModalNovoLocal()">+ Cadastrar local</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="filter-bar">
+          <div class="input-search" style="flex:1; min-width:220px;">
+            <span class="input-search-icon">🔍</span>
+            <input class="form-input" type="search" id="locais-busca" placeholder="Buscar por nome ou cidade...">
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Cidade / Estado</th>
+                  <th>Endereço</th>
+                  <th>Capacidade</th>
+                  <th>Vagas</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="locais-tbody">
+                <tr><td colspan="6" class="table-empty">Carregando locais...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: COMPONENTES CURRICULARES (US36-37) ─── -->
+    <section id="section-componentes" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Componentes curriculares</h1>
+          <p class="page-subtitle">Disciplinas vinculadas às provas e questões do sistema.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-primary" onclick="abrirModalNovoComponente()">+ Novo componente</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="filter-bar">
+          <div class="input-search" style="flex:1; min-width:220px;">
+            <span class="input-search-icon">🔍</span>
+            <input class="form-input" type="search" id="comp-busca"
+              placeholder="Buscar por nome, código ou nível...">
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Código</th>
+                  <th>Nível</th>
+                  <th>Série</th>
+                  <th>Descrição</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="comp-tbody">
+                <tr><td colspan="6" class="table-empty">Carregando componentes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: RELATÓRIOS ─── -->
+    <section id="section-relatorios" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Relatórios e certificados</h1>
+          <p class="page-subtitle">Painéis de desempenho, emissão de certificados e exportação institucional.</p>
+        </div>
+        <div class="page-header-actions">
+          <button class="btn btn-secondary" id="btn-exportar" onclick="exportarRelatorio()">Exportar dados</button>
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Métricas -->
+        <div class="metric-grid" id="rel-metrics">
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Provas finalizadas</span>
+              <span class="badge badge-publicada">Base</span>
+            </div>
+            <div class="metric-value primary" id="rel-provas-finalizadas">—</div>
+            <div class="metric-sub">Base consolidada</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Certificados emitidos</span>
+              <span class="badge badge-certificacao">Cert.</span>
+            </div>
+            <div class="metric-value success" id="rel-certificados">—</div>
+            <div class="metric-sub">Validação pública ativa</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-header">
+              <span class="metric-label">Média geral</span>
+              <span class="badge badge-simulado">Notas</span>
+            </div>
+            <div class="metric-value ia" id="rel-media">—</div>
+            <div class="metric-sub">Rede estadual</div>
+          </div>
+        </div>
+
+        <!-- Desempenho + Exportações -->
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Desempenho por nível</div>
+                <div class="card-subtitle">Recorte por nível e período.</div>
+              </div>
+              <div class="form-select-wrap">
+                <select class="form-select" id="rel-filtro-nivel" style="width:160px;">
+                  <option value="">Todos os níveis</option>
+                  <option value="FUNDAMENTAL_I">Fundamental I</option>
+                  <option value="FUNDAMENTAL_II">Fundamental II</option>
+                  <option value="MEDIO">Médio</option>
+                  <option value="ENEM">ENEM</option>
+                  <option value="EJA">EJA</option>
+                </select>
+              </div>
+            </div>
+            <div id="rel-desempenho-lista">
+              <div class="table-empty">Carregando desempenho...</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom:8px;">Recortes exportáveis</div>
+            <div class="card-subtitle">Tabelas para gestão pedagógica e auditoria.</div>
+            <div class="table-wrapper" style="margin-top:16px;">
+              <table>
+                <thead>
+                  <tr><th>Recorte</th><th>Descrição</th><th>Formato</th><th>Ação</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="td-name">Notas por usuário</td>
+                    <td class="td-muted">Boletim consolidado por aluno e prova</td>
+                    <td>CSV</td>
+                    <td><button class="btn btn-ghost btn-sm" onclick="exportarRelatorio('desempenho')">Exportar</button></td>
+                  </tr>
+                  <tr>
+                    <td class="td-name">Certificados emitidos</td>
+                    <td class="td-muted">Relação com código público de validação</td>
+                    <td>CSV</td>
+                    <td><button class="btn btn-ghost btn-sm" onclick="exportarRelatorio('certificados')">Exportar</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /dashboard-main -->
+</div><!-- /dashboard-layout -->
+
+<!-- ═══════════════════════════════════════
+     MODAL: NOVA / EDITAR PROVA
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-prova">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-prova-titulo">Nova prova</h2>
+      <button class="modal-close" data-close-modal="modal-prova">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prova-id">
+      <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="form-group" style="grid-column: 1/-1;">
+          <label class="form-label required" for="prova-titulo">Título</label>
+          <input class="form-input" type="text" id="prova-titulo" placeholder="Ex: Simulado Diagnóstico — 9º Ano A" maxlength="255">
+        </div>
+        <div class="form-group" style="grid-column: 1/-1;">
+          <label class="form-label" for="prova-descricao">Descrição</label>
+          <textarea class="form-textarea" id="prova-descricao" placeholder="Contexto, objetivos ou orientações..." rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="prova-nivel">Nível</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="prova-nivel">
+              <option value="">Selecione o nível</option>
+              <option value="FUNDAMENTAL_I">Fundamental I</option>
+              <option value="FUNDAMENTAL_II">Fundamental II</option>
+              <option value="MEDIO">Médio</option>
+              <option value="ENEM">ENEM</option>
+              <option value="EJA">EJA</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="prova-serie">Série</label>
+          <input class="form-input" type="text" id="prova-serie" placeholder="Ex: 9º Ano">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="prova-tipo">Tipo</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="prova-tipo">
+              <option value="">Selecione o tipo</option>
+              <option value="SIMULADO">Simulado</option>
+              <option value="CERTIFICACAO">Certificação</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-nota-minima">Nota mínima</label>
+          <input class="form-input" type="number" id="prova-nota-minima" placeholder="6.0" min="0" max="10" step="0.1">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-tempo">Tempo limite (min)</label>
+          <input class="form-input" type="number" id="prova-tempo" placeholder="Ex: 90" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-data-inicio">Data de início</label>
+          <input class="form-input" type="datetime-local" id="prova-data-inicio">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-data-fim">Data de encerramento</label>
+          <input class="form-input" type="datetime-local" id="prova-data-fim">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-inscricao-inicio">Abertura de inscrições</label>
+          <input class="form-input" type="datetime-local" id="prova-inscricao-inicio">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="prova-inscricao-fim">Encerramento de inscrições</label>
+          <input class="form-input" type="datetime-local" id="prova-inscricao-fim">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-prova">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-prova" onclick="salvarProva()">Salvar prova</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: NOVA / EDITAR QUESTÃO
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-questao">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-questao-titulo">Nova questão</h2>
+      <button class="modal-close" data-close-modal="modal-questao">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="questao-id">
+      <input type="hidden" id="questao-prova-id">
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label required" for="questao-enunciado">Enunciado</label>
+        <textarea class="form-textarea" id="questao-enunciado" rows="4" placeholder="Digite o enunciado completo da questão..."></textarea>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+        <div class="form-group">
+          <label class="form-label" for="questao-dificuldade">Dificuldade</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="questao-dificuldade">
+              <option value="FACIL">Fácil</option>
+              <option value="MEDIO" selected>Médio</option>
+              <option value="DIFICIL">Difícil</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="questao-componente">Componente curricular</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="questao-componente">
+              <option value="">Selecione o componente</option>
+              <!-- Preenchido dinamicamente por carregarComponentesSelect() -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px; font-size:13px; font-weight:600; color:var(--c-text);">
+        Alternativas <span style="font-weight:400; color:var(--c-text-muted);">(marque a correta)</span>
+      </div>
+      <div id="alternativas-container" style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Geradas dinamicamente por admin.js -->
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-add-alt" onclick="adicionarAlternativa()" style="margin-top:12px;">+ Alternativa</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-questao">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarQuestao()">Salvar questão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: NOVO USUÁRIO
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Cadastrar usuário</h2>
+      <button class="modal-close" data-close-modal="modal-usuario">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label required" for="usu-nome">Nome completo</label>
+        <input class="form-input" type="text" id="usu-nome" placeholder="Nome do usuário">
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label required" for="usu-email">E-mail</label>
+        <input class="form-input" type="email" id="usu-email" placeholder="email@escola.edu.br">
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label required" for="usu-senha">Senha provisória</label>
+        <input class="form-input" type="password" id="usu-senha" placeholder="Mínimo 8 caracteres">
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label required" for="usu-confirmar-senha">Confirmar senha</label>
+        <input class="form-input" type="password" id="usu-confirmar-senha" placeholder="Repita a senha">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label required" for="usu-perfil">Perfil</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="usu-perfil" onchange="toggleCamposAluno()">
+              <option value="ALUNO">Aluno</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="campo-nivel">
+          <label class="form-label required" for="usu-nivel">Nível</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="usu-nivel">
+              <option value="FUNDAMENTAL_I">Fundamental I</option>
+              <option value="FUNDAMENTAL_II">Fundamental II</option>
+              <option value="MEDIO">Médio</option>
+              <option value="ENEM">ENEM</option>
+              <option value="EJA">EJA</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group" id="campo-serie">
+        <label class="form-label" for="usu-serie">Série</label>
+        <input class="form-input" type="text" id="usu-serie" placeholder="Ex: 9º Ano">
+      </div>
+      <div id="campo-admin-token" class="form-group hidden" style="margin-top:16px;">
+        <label class="form-label required" for="usu-admin-token">Token de administrador</label>
+        <input class="form-input" type="password" id="usu-admin-token" placeholder="Token secreto para cadastro de admin">
+        <span class="form-hint">Necessário para registrar perfil ADMIN.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-usuario">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarUsuario()">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: NOVO LOCAL
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-local">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-local-titulo">Cadastrar local</h2>
+      <button class="modal-close" data-close-modal="modal-local">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="local-id">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label required" for="local-nome">Nome do local</label>
+          <input class="form-input" type="text" id="local-nome" placeholder="Ex: Escola Estadual Centro">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label required" for="local-endereco">Endereço completo</label>
+          <input class="form-input" type="text" id="local-endereco" placeholder="Rua, número, bairro">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-cidade">Cidade</label>
+          <input class="form-input" type="text" id="local-cidade">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-estado">Estado (UF)</label>
+          <input class="form-input" type="text" id="local-estado" maxlength="2" placeholder="SE" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="local-cep">CEP</label>
+          <input class="form-input" type="text" id="local-cep" placeholder="00000-000" maxlength="9">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="local-contato">Contato</label>
+          <input class="form-input" type="text" id="local-contato" placeholder="Telefone ou e-mail">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-capacidade">Capacidade total</label>
+          <input class="form-input" type="number" id="local-capacidade" placeholder="Ex: 200" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-vagas">Vagas disponíveis</label>
+          <input class="form-input" type="number" id="local-vagas" placeholder="Ex: 200" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-lat">Latitude</label>
+          <input class="form-input" type="number" id="local-lat" placeholder="-10.9167" step="any">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="local-lng">Longitude</label>
+          <input class="form-input" type="number" id="local-lng" placeholder="-37.0500" step="any">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-local">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarLocal()">Salvar local</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: CONFIRMAR EXCLUSÃO
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-confirmar">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-confirmar-titulo">Confirmar exclusão</h2>
+      <button class="modal-close" data-close-modal="modal-confirmar">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="modal-confirmar-msg" style="font-size:14px; color:var(--c-text-muted); line-height:1.6;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-confirmar">Cancelar</button>
+      <button class="btn btn-danger-solid" id="btn-confirmar-acao">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: NOVO / EDITAR COMPONENTE (US36)
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-componente">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-comp-titulo">Novo componente curricular</h2>
+      <button class="modal-close" data-close-modal="modal-componente">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="comp-id">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label required" for="comp-nome">Nome da disciplina</label>
+          <input class="form-input" type="text" id="comp-nome"
+            placeholder="Ex: Matemática, Língua Portuguesa, Ciências...">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="comp-codigo">Código</label>
+          <input class="form-input" type="text" id="comp-codigo"
+            placeholder="Ex: MAT, PORT, CIEN" maxlength="20"
+            style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="comp-nivel">Nível</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="comp-nivel">
+              <option value="">Todos os níveis</option>
+              <option value="FUNDAMENTAL_I">Fundamental I</option>
+              <option value="FUNDAMENTAL_II">Fundamental II</option>
+              <option value="MEDIO">Médio</option>
+              <option value="ENEM">ENEM</option>
+              <option value="EJA">EJA</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="comp-serie">Série (opcional)</label>
+          <input class="form-input" type="text" id="comp-serie"
+            placeholder="Ex: 9º Ano, 3ª Série...">
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" for="comp-descricao">Descrição</label>
+          <textarea class="form-textarea" id="comp-descricao" rows="3"
+            placeholder="Objetivos, ementa ou observações sobre o componente..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-componente">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarComponente()">Salvar componente</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/global.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

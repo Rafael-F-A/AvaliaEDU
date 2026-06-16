@@ -192,3 +192,9 @@ button:hover{
     }
 
 }
+
+/* Sombra no header ao rolar (adicionada por landing-page.js) */
+header.scrolled {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.20);
+  transition: box-shadow 0.3s;
+}

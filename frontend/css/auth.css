@@ -1,0 +1,357 @@
+/* ─── Reset & Base ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  background: #f0f4f8;
+}
+
+/* ─── Layout de dois painéis ─── */
+.login-left {
+  width: 400px;
+  flex-shrink: 0;
+  background: #0b2a5c;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-left::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: rgba(11, 87, 197, 0.2);
+  pointer-events: none;
+}
+
+.login-left::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: rgba(52, 208, 88, 0.08);
+  pointer-events: none;
+}
+
+.login-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+/* ─── Marca ─── */
+.brand {
+  margin-bottom: 48px;
+  position: relative;
+  z-index: 1;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.brand-s { color: #ffffff; font-size: 40px; font-weight: 900; }
+.brand-e1 { color: #34d058; font-size: 40px; font-weight: 900; }
+.brand-e2 { color: #f2c230; font-size: 40px; font-weight: 900; }
+.brand-d  { color: #0abff7; font-size: 40px; font-weight: 900; }
+.brand-sep { color: #475569; font-size: 40px; font-weight: 300; margin: 0 4px; }
+
+.brand-title {
+  font-size: 14px;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+
+/* ─── Lista de recursos ─── */
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(11, 87, 197, 0.35);
+  border: 1px solid rgba(11, 87, 197, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.feature-item p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #94a3b8;
+  padding-top: 5px;
+}
+
+/* ─── Cartão de login ─── */
+.login-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10);
+  width: 100%;
+  max-width: 480px;
+  padding: 44px 40px;
+}
+
+.card-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ─── Abas (Entrar / Criar conta) ─── */
+.tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 28px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #64748b;
+  font-family: Arial, Helvetica, sans-serif;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: #0b57c5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* ─── Painel de formulário ─── */
+.form-panel {
+  display: none;
+}
+
+.form-panel.active {
+  display: block;
+}
+
+/* ─── Campos ─── */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #0f172a;
+  outline: none;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: #0b57c5;
+  box-shadow: 0 0 0 3px rgba(11, 87, 197, 0.12);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.form-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ─── Alerta geral ─── */
+.alert-box {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  display: none;
+  border-left: 4px solid;
+  line-height: 1.4;
+}
+
+.alert-box.error {
+  background: #fef2f2;
+  color: #7f1d1d;
+  border-color: #ef4444;
+}
+
+.alert-box.success {
+  background: #f0fdf4;
+  color: #14532d;
+  border-color: #22c55e;
+}
+
+.alert-box.show {
+  display: block;
+}
+
+/* ─── Botão principal ─── */
+.btn-submit {
+  width: 100%;
+  padding: 13px;
+  background: #0b57c5;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: Arial, Helvetica, sans-serif;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.1s;
+  margin-top: 8px;
+  letter-spacing: 0.3px;
+}
+
+.btn-submit:hover {
+  background: #0942a0;
+  transform: translateY(-1px);
+}
+
+.btn-submit:active {
+  transform: translateY(0);
+}
+
+.btn-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── Spinner no botão ─── */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Link rodapé ─── */
+.link-text {
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 16px;
+}
+
+.link-text a {
+  color: #0b57c5;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link-text a:hover {
+  text-decoration: underline;
+}
+
+/* ─── Separador ─── */
+.separator {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 8px 0 18px;
+}
+
+/* ─── Campo admin oculto ─── */
+.campo-oculto {
+  display: none;
+}
+
+/* ─── Responsivo ─── */
+@media (max-width: 720px) {
+  .login-left {
+    display: none;
+  }
+
+  .login-card {
+    padding: 32px 24px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
