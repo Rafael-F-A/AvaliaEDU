@@ -212,10 +212,6 @@ tbody tr:hover{
   gap: var(--space-4);
 }
 
-.admin-card{
-  composes: card;
-}
-
 /* Modo EJA: reforços */
 body[data-mode="eja"] .admin-card,
 body.eja .admin-card,

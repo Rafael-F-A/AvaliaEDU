@@ -138,8 +138,7 @@
     }
 }
 
-/* 
- MODO EJA */
+/* MODO EJA */
 
 body[data-mode="eja"] .apresentacao,
 body[data-mode="eja"] .saiba-card,
@@ -154,7 +153,7 @@ body[data-mode="eja"] .missao{
     box-shadow:none;
 }
 
-/* Ajeites visuais: títulos centralizados + quadro verde clarinho */
+/*Visual: títulos centralizados e quadro verde claro */
 
 .apresentacao, 
 .missao,
@@ -162,7 +161,7 @@ body[data-mode="eja"] .missao{
     text-align:center;
 }
 
-/* Quadro verde bem clarinho para títulos */
+/*Quadro verde bem clarinho para títulos */
 .apresentacao h2,
 .missao h2,
 .saiba-card h3{

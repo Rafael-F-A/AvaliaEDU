@@ -1,15 +1,18 @@
- // Deixar o dashboard integrar com a API futuramente.
-(function () {
-  document.addEventListener('DOMContentLoaded', () => {
-    // substituir '—' por dados reais.
-    const ids = ['kpi-users', 'kpi-provas', 'kpi-questoes', 'kpi-activity'];
-    ids.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (el.textContent.trim() === '' || el.textContent.trim() === '—') {
-        el.textContent = '—';
-      }
-    });
-  });
-})();
+import { apiRequest, provas, questoes } from './api.js';
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Placeholder: enquanto endpoints reais de KPI não existem/ não mapear.
+  // Mantém '—' mas já deixa pronto para integração via apiRequest.
+  setText('kpi-users', '—');
+  setText('kpi-provas', '—');
+  setText('kpi-questoes', '—');
+  setText('kpi-activity', '—');
+});
+
 
