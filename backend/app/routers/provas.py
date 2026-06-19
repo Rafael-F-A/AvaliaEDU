@@ -1,91 +1,102 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+from typing import Optional
 
-router = APIRouter(
-    prefix="/provas",
-    tags=["Provas"]
+from app.database import get_db
+from app import models, schemas
+from app.dependencies import get_usuario_atual, get_usuario_admin
+from app.services import prova_service
+
+router = APIRouter(prefix="/provas", tags=["Provas"])
+
+
+# US14 — Endpoint dedicado para o aluno
+@router.get(
+    "/disponiveis",
+    response_model=schemas.ProvasDisponivelListResponse,
+    summary="Lista provas disponíveis para o aluno (US14)",
 )
-
-provas = []
-
-
-@router.post("/")
-def criar_prova(dados: dict):
-
-    prova = {
-        "id": len(provas) + 1,
-        "titulo": dados["titulo"],
-        "materia": dados["materia"],
-        "data": dados["data"],
-        "publicada": False
-    }
-
-    provas.append(prova)
-
-    return {
-        "mensagem": "Prova criada com sucesso",
-        "dados": prova
-    }
-
-
-@router.get("/")
-def listar_provas():
-
-    return provas
-
-
-@router.put("/{id}")
-def editar_prova(id: int, dados: dict):
-
-    for prova in provas:
-
-        if prova["id"] == id:
-
-            prova["titulo"] = dados["titulo"]
-            prova["materia"] = dados["materia"]
-
-            return {
-                "mensagem": "Prova atualizada"
-            }
-
-    raise HTTPException(
-        status_code=404,
-        detail="Prova não encontrada"
+def listar_provas_disponiveis(
+    nivel: Optional[str] = Query(None, description="Sobrescreve o nível do perfil"),
+    tipo: Optional[str] = Query(None, description="SIMULADO | CERTIFICACAO"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    aluno: models.Usuario = Depends(get_usuario_atual),
+):
+    return prova_service.listar_provas_aluno(
+        db=db, aluno=aluno, nivel=nivel, tipo=tipo, skip=skip, limit=limit
     )
 
 
-@router.delete("/{id}")
-def excluir_prova(id: int):
+@router.post("/", response_model=schemas.ProvaResponse, status_code=201)
+def criar_prova(
+    dados: schemas.ProvaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
+):
+    return prova_service.criar_prova(dados, criado_por=usuario.id, db=db)
 
-    for prova in provas:
 
-        if prova["id"] == id:
+@router.get(
+    "/",
+    response_model=schemas.ProvasListResponse,
+    summary="Lista todas as provas com paginação (US06)",
+)
+def listar_provas(
+    nivel: Optional[str] = Query(None),
+    serie: Optional[str] = Query(None),
+    tipo: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_atual),
+):
+    """Retorna lista paginada de provas.
 
-            provas.remove(prova)
-
-            return {
-                "mensagem": "Prova removida"
-            }
-
-    raise HTTPException(
-        status_code=404,
-        detail="Prova não encontrada"
+    - Admin vê todas (incluindo rascunhos).
+    - Aluno vê apenas publicadas.
+    """
+    return prova_service.listar_provas(
+        db, usuario, nivel, serie, tipo, skip, limit
     )
 
 
-@router.post("/{id}/publicar")
-def publicar_prova(id: int):
+@router.get("/{prova_id}", response_model=schemas.ProvaResponse)
+def buscar_prova(
+    prova_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_atual),
+):
+    return prova_service.buscar_prova_por_id(prova_id, usuario, db)
 
-    for prova in provas:
 
-        if prova["id"] == id:
+@router.put("/{prova_id}", response_model=schemas.ProvaResponse)
+def editar_prova(
+    prova_id: int,
+    dados: schemas.ProvaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
+):
+    return prova_service.editar_prova(prova_id, dados, db)
 
-            prova["publicada"] = True
 
-            return {
-                "mensagem": "Prova publicada com sucesso"
-            }
+@router.patch("/{prova_id}/publicar", response_model=schemas.ProvaResponse)
+def publicar_prova(
+    prova_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
+):
+    """Publica uma prova (RASCUNHO → PUBLICADA). Exige ao menos 1 questão."""
+    return prova_service.publicar_prova(prova_id, db)
 
-    raise HTTPException(
-        status_code=404,
-        detail="Prova não encontrada"
-    )
+
+@router.delete("/{prova_id}", response_model=schemas.MensagemResponse)
+def deletar_prova(
+    prova_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
+):
+    prova_service.deletar_prova(prova_id, db)
+    return {"message": "Prova deletada com sucesso."}
+
