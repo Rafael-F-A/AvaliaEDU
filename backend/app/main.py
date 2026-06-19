@@ -34,4 +34,6 @@ def health_check():
 
 app.include_router(auth_router)
 from app.routers import questoes
+from app.routers import provas
 app.include_router(questoes.router)
+app.include_router(provas.router)
