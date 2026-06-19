@@ -24,7 +24,7 @@ async function apiFetch(endpoint, opcoes = {}) {
   if (!response.ok) {
     if (response.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = './auth.html'; // Redireciona se o token expirar
+      window.location.href = './dashboard-aluno.html'; // Redireciona se o token expirar
     }
     const erroDados = await response.json().catch(() => ({}));
     throw new Error(erroDados.detail || `Erro HTTP ${response.status}`);
