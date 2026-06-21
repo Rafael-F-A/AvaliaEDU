@@ -19,6 +19,8 @@ from reportlab.platypus import (
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
+from app.utils.storage import baixar_objeto
+
 from app import models
 from app.utils.storage import upload_certificado
 
@@ -308,7 +310,8 @@ def gerar_pdf_prova_aluno(
                 ) as tmp_img:
                     tmp_img_path = tmp_img.name
 
-                urllib.request.urlretrieve(questao.imagem_url, tmp_img_path)
+                with open(tmp_img_path, "wb") as _f:
+                    _f.write(baixar_objeto(questao.imagem_url))
                 arquivos_tmp_imagem.append(tmp_img_path)
 
                 from PIL import Image as PILImage
@@ -356,7 +359,8 @@ def gerar_pdf_prova_aluno(
                     suffix = ".jpg" if "jpg" in alt.imagem_url.lower() else ".png"
                     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_alt:
                         tmp_alt_path = tmp_alt.name
-                    urllib.request.urlretrieve(alt.imagem_url, tmp_alt_path)
+                    with open(tmp_alt_path, "wb") as _f:
+                        _f.write(baixar_objeto(alt.imagem_url))
                     arquivos_tmp_imagem.append(tmp_alt_path)
 
                     from PIL import Image as PILImage
