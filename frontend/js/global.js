@@ -148,7 +148,16 @@ async function apiFetch(endpoint, options = {}) {
   // Sem conteúdo (204 Delete, etc.)
   if (response.status === 204) return null;
 
-  const data = await response.json();
+  // A resposta pode não ser JSON (ex.: 502/503 do host devolve HTML).
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status} — o servidor não respondeu corretamente. Tente novamente em instantes.`);
+    }
+    return null;
+  }
 
   if (!response.ok) {
     const mensagem = data?.detail || `Erro ${response.status}`;
@@ -156,6 +165,36 @@ async function apiFetch(endpoint, options = {}) {
   }
 
   return data;
+}
+
+/**
+ * Como apiFetch, mas para endpoints PAGINADOS ({ total, skip, limit, <chave>: [...] }).
+ * Percorre todas as páginas e devolve o array completo — assim listagens e filtros
+ * client-side enxergam todos os registros, não só a primeira página.
+ *
+ * @param {string} endpoint – rota base (pode já conter query string)
+ * @param {string} chave    – nome do campo array na resposta (ex.: 'provas', 'usuarios')
+ * @param {number} pagina   – tamanho de página (default 100 = máximo do backend)
+ * @returns {Promise<Array>}
+ *
+ * @example
+ *   const provas = await apiFetchAll('/provas', 'provas');
+ */
+async function apiFetchAll(endpoint, chave, pagina = 100) {
+  const sep = endpoint.includes('?') ? '&' : '?';
+  let skip = 0;
+  let acumulado = [];
+  // trava de segurança contra loop infinito
+  for (let i = 0; i < 500; i++) {
+    const resp = await apiFetch(`${endpoint}${sep}skip=${skip}&limit=${pagina}`);
+    if (Array.isArray(resp)) return resp;            // endpoint não-paginado
+    const lote = resp?.[chave] ?? [];
+    acumulado = acumulado.concat(lote);
+    const total = resp?.total ?? acumulado.length;
+    skip += pagina;
+    if (lote.length === 0 || acumulado.length >= total) break;
+  }
+  return acumulado;
 }
 
 /* ─────────────────────────────────────────
