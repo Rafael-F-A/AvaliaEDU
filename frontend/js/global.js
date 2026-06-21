@@ -9,7 +9,7 @@
    ─────────────────────────────────────── */
 
 /** URL base da API. Altere para a URL de produção quando publicar. */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (['localhost', '127.0.0.1'].includes(location.hostname)) ? 'http://localhost:8000' : 'https://avaliaedu-api.onrender.com';
 
 /** Chave usada no localStorage para o token JWT */
 const TOKEN_KEY   = 'avaliaedu_token';

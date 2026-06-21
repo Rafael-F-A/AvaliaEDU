@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
      global.js, carregado só nos dashboards).
      ─────────────────────────────────────── */
 
-  const API_BASE_VALIDACAO = 'http://localhost:8000';
+  const API_BASE_VALIDACAO = (['localhost', '127.0.0.1'].includes(location.hostname)) ? 'http://localhost:8000' : 'https://avaliaedu-api.onrender.com';
 
   function _escHtmlValidacao(str) {
     const div = document.createElement('div');

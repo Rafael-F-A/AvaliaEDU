@@ -8,7 +8,7 @@
  *                           nivel?, serie?, admin_token? }
  */
 
-const API_BASE  = 'http://localhost:8000';
+const API_BASE  = (['localhost', '127.0.0.1'].includes(location.hostname)) ? 'http://localhost:8000' : 'https://avaliaedu-api.onrender.com';
 const TOKEN_KEY = 'avaliaedu_token';
 const USR_KEY   = 'avaliaedu_usuario';
 
