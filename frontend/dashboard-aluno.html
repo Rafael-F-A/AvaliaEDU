@@ -281,6 +281,20 @@
           <!-- Questão -->
           <div class="card" id="exam-questao-card">
             <div id="exam-questao-numero" style="font-size:12px; font-weight:600; color:var(--c-text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.5px;">Questão 1</div>
+
+            <!-- Narrador de questão (leitura em voz alta — acessibilidade) -->
+            <div id="narrador-bar" class="narrador-bar" role="group" aria-label="Leitura em voz alta da questão">
+              <button type="button" id="narrador-ouvir" class="narrador-btn narrador-btn-primario" onclick="narrarQuestaoAtual()" aria-label="Ouvir a questão e as alternativas">🔊 Ouvir</button>
+              <button type="button" id="narrador-pausar" class="narrador-btn" onclick="narradorPausarContinuar()" aria-label="Pausar leitura" style="display:none;">⏸ Pausar</button>
+              <button type="button" id="narrador-parar" class="narrador-btn" onclick="Narrador.parar()" aria-label="Parar leitura" style="display:none;">⏹ Parar</button>
+              <span class="narrador-veloc" role="group" aria-label="Velocidade da leitura">
+                <span class="narrador-veloc-label">Velocidade</span>
+                <button type="button" class="narrador-veloc-btn" data-rate="0.7" onclick="narradorSetVeloc(0.7, this)" aria-pressed="false">Devagar</button>
+                <button type="button" class="narrador-veloc-btn ativo" data-rate="1" onclick="narradorSetVeloc(1, this)" aria-pressed="true">Normal</button>
+                <button type="button" class="narrador-veloc-btn" data-rate="1.3" onclick="narradorSetVeloc(1.3, this)" aria-pressed="false">Rápido</button>
+              </span>
+            </div>
+
             <div id="exam-enunciado" style="font-size:15px; line-height:1.7; color:var(--c-text); margin-bottom:24px; font-weight:500;"></div>
             <div id="exam-imagem-wrap" style="display:none; margin-bottom:20px;">
               <img id="exam-imagem" src="" alt="Imagem da questão" style="max-width:100%; border-radius:8px; border:1px solid var(--c-border);">
@@ -955,6 +969,7 @@
      SCRIPTS
 ═══════════════════════════════════════ -->
 <script src="js/global.js"></script>
+<script src="js/narrador.js"></script>
 <script src="js/aluno.js"></script>
 </body>
 </html>

@@ -599,3 +599,105 @@ body.eja-mode .localidade-card        { padding: 28px 20px; }
   }
   .local-card-meta { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════
+   NARRADOR DE QUESTÃO (leitura em voz alta)
+═══════════════════════════════════════════════════ */
+.narrador-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 10px;
+  background: var(--c-primary-light);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+}
+
+.narrador-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  min-height: 40px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--c-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.narrador-btn:hover,
+.narrador-btn:focus-visible {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+}
+.narrador-btn-primario {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+}
+.narrador-btn-primario:hover,
+.narrador-btn-primario:focus-visible {
+  background: var(--c-primary-dark);
+  color: #fff;
+}
+
+.narrador-veloc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.narrador-veloc-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text-muted);
+}
+.narrador-veloc-btn {
+  padding: 6px 10px;
+  min-height: 34px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--c-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.narrador-veloc-btn.ativo {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.narrador-aviso { font-size: 13px; color: var(--c-text-muted); }
+
+/* Ícone de ouvir em cada alternativa */
+.alt-ouvir {
+  margin-left: auto;
+  align-self: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--c-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.alt-ouvir:hover,
+.alt-ouvir:focus-visible {
+  background: var(--c-primary-light);
+  border-color: var(--c-primary);
+}
+
+/* EJA — botões maiores/contraste */
+body.eja-mode .narrador-btn      { font-size: 16px; min-height: 48px; padding: 12px 18px; border-color: #000; }
+body.eja-mode .narrador-veloc-btn { font-size: 15px; min-height: 42px; border-color: #000; }
+body.eja-mode .alt-ouvir          { width: 42px; height: 42px; font-size: 20px; border-color: #000; }

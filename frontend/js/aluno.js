@@ -1015,6 +1015,9 @@ function resetarExam() {
 
 /** Renderiza a questão atual (baseado em exam.indiceAtual). */
 function renderQuestaoExam() {
+  // interrompe a leitura em voz da questão anterior
+  if (window.Narrador) Narrador.parar();
+
   const q = exam.questoesCache[exam.indiceAtual];
   if (!q) return;
 
@@ -1064,6 +1067,11 @@ function renderQuestaoExam() {
             ${alt.imagem_url
               ? `<img src="${alt.imagem_url}" alt="Imagem da alternativa"
                   style="max-width:200px;margin-top:8px;border-radius:6px;">`
+              : ''}
+            ${Narrador.suportado()
+              ? `<button type="button" class="alt-ouvir" title="Ouvir esta opção"
+                   aria-label="Ouvir esta opção"
+                   onclick="event.stopPropagation(); narrarAlternativaEl(this)">🔊</button>`
               : ''}
           </div>`;
       }).join('');
@@ -1887,3 +1895,95 @@ function formatarDataHora(iso) {
     hour: '2-digit', minute: '2-digit',
   });
 }
+
+/* ─────────────────────────────────────────
+   15. NARRADOR DE QUESTÃO (leitura em voz alta)
+   ─────────────────────────────────────── */
+
+/** Lê em voz alta a questão atual: enunciado + todas as alternativas. */
+function narrarQuestaoAtual() {
+  const q = exam.questoesCache[exam.indiceAtual];
+  if (!q) return;
+  const num = q.questao_numero || (exam.indiceAtual + 1);
+  const trechos = [`Questão ${num}. ${q.enunciado || ''}`];
+  if (q.imagem_url) trechos.push('Esta questão tem uma imagem.');
+
+  const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+  (q.alternativas || [])
+    .slice()
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    .forEach((alt, i) => {
+      const letra = letras[i] || (i + 1);
+      const txt = (alt.texto || '').trim();
+      trechos.push(txt ? `Opção ${letra}. ${txt}` : `Opção ${letra}. Imagem.`);
+    });
+
+  Narrador.falar(trechos);
+}
+
+/** Lê em voz alta apenas a alternativa do botão clicado (lê do DOM). */
+function narrarAlternativaEl(btn) {
+  const item = btn.closest('.alternativa-item');
+  if (!item) return;
+  const letra = (item.querySelector('.alt-letra')?.textContent || '').trim();
+  const texto = (item.querySelector('.alt-texto')?.textContent || '').trim();
+  Narrador.falar(texto ? `Opção ${letra}. ${texto}` : `Opção ${letra}. Imagem.`);
+}
+
+/** Botão único Pausar/Continuar — decide pela label atual. */
+function narradorPausarContinuar() {
+  const btn = document.getElementById('narrador-pausar');
+  if (btn && btn.textContent.includes('Continuar')) Narrador.continuar();
+  else Narrador.pausar();
+}
+
+/** Define a velocidade e destaca o botão escolhido. */
+function narradorSetVeloc(rate, btn) {
+  Narrador.setVelocidade(rate);
+  document.querySelectorAll('.narrador-veloc-btn').forEach(b => {
+    b.classList.remove('ativo');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  if (btn) {
+    btn.classList.add('ativo');
+    btn.setAttribute('aria-pressed', 'true');
+  }
+}
+
+/** Atualiza a UI da barra conforme o estado do narrador. */
+function narradorAtualizarUI(estado) {
+  const pausar = document.getElementById('narrador-pausar');
+  const parar  = document.getElementById('narrador-parar');
+  if (!pausar || !parar) return;
+  const ativo = (estado === 'falando' || estado === 'pausado');
+  pausar.style.display = ativo ? '' : 'none';
+  parar.style.display  = ativo ? '' : 'none';
+  const pausado = estado === 'pausado';
+  pausar.textContent = pausado ? '▶ Continuar' : '⏸ Pausar';
+  pausar.setAttribute('aria-label', pausado ? 'Continuar leitura' : 'Pausar leitura');
+}
+
+/** Inicializa a barra do narrador (suporte, estado, velocidade persistida). */
+function initNarradorUI() {
+  const bar = document.getElementById('narrador-bar');
+  if (!bar || !window.Narrador) return;
+
+  if (!Narrador.suportado()) {
+    bar.classList.add('narrador-indisponivel');
+    bar.innerHTML = '<span class="narrador-aviso">🔇 Seu navegador não suporta leitura em voz.</span>';
+    return;
+  }
+
+  Narrador.onEstado(narradorAtualizarUI);
+  narradorAtualizarUI('parado');
+
+  // reflete a velocidade salva nos botões
+  const r = Narrador.getVelocidade();
+  document.querySelectorAll('.narrador-veloc-btn').forEach(b => {
+    const ativo = Math.abs(parseFloat(b.dataset.rate) - r) < 0.001;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initNarradorUI);
