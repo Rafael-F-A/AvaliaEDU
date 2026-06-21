@@ -1,6 +1,14 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator, field_serializer
 from typing import Optional
 from datetime import datetime, date
+
+
+def _imagem_url_fresca(v):
+    """Renova a URL assinada da imagem ao serializar p/ o frontend (nunca expira em tela)."""
+    if not v:
+        return v
+    from app.utils import storage
+    return storage.url_assinada_fresca(v)
 
 # Usuários
 
@@ -189,6 +197,10 @@ class AlternativaResponse(BaseModel):
     ordem: Optional[int]
     imagem_url: Optional[str] = None
 
+    @field_serializer('imagem_url')
+    def _ser_imagem_url(self, v, _info):
+        return _imagem_url_fresca(v)
+
     class Config:
         from_attributes = True
 
@@ -197,6 +209,10 @@ class AlternativaPublica(BaseModel):
     texto: str
     ordem: Optional[int] = None
     imagem_url: Optional[str] = None
+
+    @field_serializer('imagem_url')
+    def _ser_imagem_url(self, v, _info):
+        return _imagem_url_fresca(v)
 
     class Config:
         from_attributes = True
@@ -222,6 +238,10 @@ class QuestaoResponse(BaseModel):
     ordem: Optional[int]
     imagem_url: Optional[str] = None
     alternativas: list[AlternativaResponse]
+
+    @field_serializer('imagem_url')
+    def _ser_imagem_url(self, v, _info):
+        return _imagem_url_fresca(v)
 
     class Config:
         from_attributes = True
