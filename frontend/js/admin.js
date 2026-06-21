@@ -132,8 +132,8 @@ async function carregarDashboard() {
   try {
     // Chamadas em paralelo — falhas individuais não quebram o painel
     const [provasRes, usuariosRes, locaisRes] = await Promise.allSettled([
-      apiFetch('/provas'),
-      apiFetch('/usuarios'),
+      apiFetchAll('/provas', 'provas'),
+      apiFetchAll('/usuarios', 'usuarios'),
       apiFetch('/locais'),
     ]);
 
@@ -184,8 +184,7 @@ async function carregarProvas() {
 
   try {
     setLoading(true);
-    const data = await apiFetch('/provas');
-    _provas = Array.isArray(data) ? data : (data?.provas ?? []);
+    _provas = await apiFetchAll('/provas', 'provas');
     _renderProvas(_provas);
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Erro ao carregar: ${err.message}</td></tr>`;
@@ -438,8 +437,7 @@ async function abrirModalExportarPDF(provaId, titulo) {
   container.innerHTML = `<div class="table-empty">Carregando alunos...</div>`;
 
   try {
-    const data = await apiFetch('/usuarios?perfil=ALUNO&limit=200');
-    const alunos = Array.isArray(data) ? data : (data?.usuarios ?? []);
+    const alunos = await apiFetchAll('/usuarios?perfil=ALUNO', 'usuarios');
     _renderListaAlunosExportar(alunos);
   } catch (err) {
     container.innerHTML = `<div class="table-empty">Erro ao carregar alunos: ${err.message}</div>`;
@@ -1445,8 +1443,7 @@ async function carregarUsuarios() {
 
   try {
     setLoading(true);
-    const data = await apiFetch('/usuarios');
-    _usuarios = Array.isArray(data) ? data : (data?.usuarios ?? []);
+    _usuarios = await apiFetchAll('/usuarios', 'usuarios');
     _renderUsuarios(_usuarios);
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="7" class="table-empty">Erro: ${err.message}</td></tr>`;

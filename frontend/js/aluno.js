@@ -164,7 +164,7 @@ async function carregarDashboard() {
     const [historico, certs, provas] = await Promise.allSettled([
       apiFetch('/simulados/historico'),
       apiFetch('/certificacoes/historico'),
-      apiFetch('/provas?status=PUBLICADA'),
+      apiFetchAll('/provas?status=PUBLICADA', 'provas'),
     ]);
 
     const hist  = historico.status  === 'fulfilled' ? historico.value  : [];
@@ -220,7 +220,7 @@ async function carregarProvasAluno() {
   try {
     setLoading(true);
     const [provas, historico, certHist, inscricoes] = await Promise.all([
-      apiFetch('/provas?status=PUBLICADA'),
+      apiFetchAll('/provas?status=PUBLICADA', 'provas'),
       apiFetch('/simulados/historico'),
       apiFetch('/certificacoes/historico'),
       apiFetch('/inscricoes/minhas').catch(() => []),
