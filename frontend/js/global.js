@@ -133,10 +133,28 @@ async function apiFetch(endpoint, options = {}) {
     delete headers['Content-Type'];
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  // Timeout: o free-tier (Render) pode demorar no cold start, mas a UI não pode
+  // pendurar pra sempre. Aborta após `options.timeout` (padrão 60s) e devolve um
+  // erro legível — o catch de quem chamou reseta o botão e mostra o toast.
+  const _timeoutMs = options.timeout || 60000;
+  const _controller = new AbortController();
+  const _timer = setTimeout(() => _controller.abort(), _timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: _controller.signal,
+    });
+  } catch (erroRede) {
+    clearTimeout(_timer);
+    if (erroRede && erroRede.name === 'AbortError') {
+      throw new Error('O servidor demorou demais para responder (pode estar reiniciando). Aguarde alguns segundos e tente novamente.');
+    }
+    throw new Error('Falha de conexão com o servidor. Verifique sua internet e tente novamente.');
+  }
+  clearTimeout(_timer);
 
   // Token expirado ou inválido → desloga
   if (response.status === 401) {
