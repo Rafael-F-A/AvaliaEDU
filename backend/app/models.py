@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, JSON, Date
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, JSON, Date, Table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -26,7 +26,8 @@ class Usuario(Base):
     tentativas = relationship("Tentativa", back_populates="aluno", cascade="all, delete-orphan")
     reservas = relationship("Reserva", back_populates="aluno", cascade="all, delete-orphan")
     certificados = relationship("Certificado", back_populates="aluno")
-
+    provas_componentes = Table("provas_componentes", Base.metadata, Column("prova_id", Integer, ForeignKey("provas.id", ondelete="CASCADE"), primary_key=True), Column("componente_id", Integer, ForeignKey("componentes_curriculares.id", ondelete="CASCADE"), primary_key=True),
+)
 
 class Prova(Base):
     __tablename__ = "provas"
@@ -40,6 +41,10 @@ class Prova(Base):
     status = Column(String(20), default="RASCUNHO")
     nota_minima = Column(Float, default=6.0)
     tempo_limite = Column(Integer)
+    data_inicio_inscricao = Column(DateTime(timezone=True), nullable=True)
+    data_fim_inscricao = Column(DateTime(timezone=True), nullable=True)
+    data_inicio = Column(Date, nullable=True)
+    data_fim = Column(Date, nullable=True)
     criado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -50,7 +55,7 @@ class Prova(Base):
     tentativas = relationship("Tentativa", back_populates="prova")
     reservas = relationship("Reserva", back_populates="prova")
     certificados = relationship("Certificado", back_populates="prova")
-
+    componentes = relationship("ComponenteCurricular", secondary="provas_componentes", back_populates="provas")
 
 class Questao(Base):
     __tablename__ = "questoes"
@@ -59,7 +64,9 @@ class Questao(Base):
     enunciado = Column(Text, nullable=False)
     prova_id = Column(Integer, ForeignKey("provas.id", ondelete="CASCADE"), nullable=False)
     nivel_dificuldade = Column(String(20), default="MEDIO")
+    pontuacao = Column(Float, default=1.0)
     ordem = Column(Integer)
+    imagem_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -78,7 +85,8 @@ class Alternativa(Base):
     is_correta = Column(Boolean, default=False)
     ordem = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    imagem_url = Column(String(500), nullable=True)
+    
     # Relacionamentos
     questao = relationship("Questao", back_populates="alternativas")
     respostas = relationship("Resposta", back_populates="alternativa")
@@ -99,6 +107,7 @@ class Local(Base):
     geolocalizacao = Column(Geometry('POINT', srid=4326))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    ativo = Column(Boolean, default=True)
 
     # Relacionamentos
     reservas = relationship("Reserva", back_populates="local", cascade="all, delete-orphan")
@@ -115,6 +124,7 @@ class Reserva(Base):
     data_expiracao = Column(DateTime(timezone=True))
     status = Column(String(20), default="ATIVA")
     necessidades_especiais = Column(Text)
+    tentativa_id = Column(Integer, ForeignKey("tentativas.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -141,6 +151,8 @@ class Tentativa(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     ordem_questoes = Column(JSON, nullable=True)
     ordem_alternativas = Column(JSON, nullable=True)
+    modalidade = Column(String(15), default="ONLINE")
+    reserva_id = Column(Integer, ForeignKey("reservas.id"), nullable=True)
 
     # Relacionamentos
     aluno = relationship("Usuario", back_populates="tentativas")
@@ -193,3 +205,34 @@ class Auditoria(Base):
     ip = Column(String(45))
     user_agent = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ModeloQuestao(Base):
+    __tablename__ = "modelos_questao"
+    id            = Column(Integer, primary_key=True, index=True)
+    modelo_texto  = Column(Text, nullable=False)
+    # Gabarito e alternativas também são templates
+    gabarito      = Column(Text, nullable=False)
+    distradores   = Column(JSON, nullable=False)
+    variaveis     = Column(JSON, nullable=True)
+    nivel         = Column(String(20), nullable=False)
+    serie         = Column(String(20), nullable=True)
+    componente_id = Column(Integer, ForeignKey("componentes_curriculares.id"), nullable=True)
+    dificuldade   = Column(String(20), default="MEDIO")
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
+    imagem_url = Column(String(500), nullable=True)
+
+class ComponenteCurricular(Base):
+    __tablename__ = "componentes_curriculares"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String(100), nullable=False, unique=True)
+    codigo = Column(String(20), unique=True, nullable=True)
+    descricao = Column(Text, nullable=True)
+    nivel = Column(String(20), nullable=True)
+    serie = Column(String(20), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relacionamentos
+    provas = relationship("Prova", secondary="provas_componentes", back_populates="componentes")

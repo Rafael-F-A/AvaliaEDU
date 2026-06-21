@@ -99,7 +99,7 @@ def iniciar_certificacao(tentativa_id: int, aluno: models.Usuario, db: Session):
         "tentativa_id": tentativa.id,
         "questao_id": primeira_q.id,
         "enunciado": primeira_q.enunciado,
-        "alternativas": [db.query(models.Alternativa).get(alt_id) for alt_id in alternativas],
+        "alternativas": [db.get(models.Alternativa, alt_id) for alt_id in alternativas],
         "questao_numero": 1,
         "total_questoes": len(ordem_questoes)
     }
@@ -193,6 +193,7 @@ def listar_historico(aluno: models.Usuario, db: Session) -> list:
             "nota": nota,
             "resultado": resultado,
             "certificado_id": tent.certificado.id if tent.certificado else None,
+            "codigo_validacao": tent.certificado.codigo_validacao if tent.certificado else None,
             "bloqueio_ate": tent.bloqueio_ate,
         })
     return historico

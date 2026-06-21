@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar — AvaliaEDU</title>
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+  <!-- ── Painel esquerdo: identidade visual SEED ── -->
+  <div class="login-left">
+    <div class="brand">
+      <div class="brand-logo">
+        <span class="brand-s">S</span><span class="brand-sep">-</span>
+        <span class="brand-e1">E</span><span class="brand-sep">-</span>
+        <span class="brand-e2">E</span><span class="brand-sep">-</span>
+        <span class="brand-d">D</span>
+      </div>
+      <p class="brand-title">
+        Secretaria de Estado da Educação de Sergipe<br>
+        Plataforma AvaliaEDU
+      </p>
+    </div>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="feature-icon">📋</div>
+        <p>Simulados e certificações com correção automática</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🏆</div>
+        <p>Certificados digitais validados pela SEED/SE</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📍</div>
+        <p>Locais de prova próximos à sua localização</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <p>Histórico completo de resultados e desempenho</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Painel direito: formulário ── -->
+  <div class="login-right">
+    <div class="login-card">
+      <h1 class="card-title">Entrar no sistema</h1>
+      <p class="card-subtitle">Use seu e-mail institucional para acessar a plataforma.</p>
+
+      <!-- Alerta de erro / sucesso -->
+      <div class="alert-box" id="alert-box"></div>
+
+      <!-- Abas -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="trocarAba('entrar')">Entrar</button>
+        <button class="tab-btn" onclick="trocarAba('criar')">Criar conta</button>
+      </div>
+
+      <!-- ── ABA: ENTRAR ── -->
+      <div class="form-panel active" id="panel-entrar">
+        <div class="form-group">
+          <label class="form-label" for="login-email">E-mail</label>
+          <input class="form-input" type="email" id="login-email"
+            placeholder="nome@escola.edu.br" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-senha">Senha</label>
+          <input class="form-input" type="password" id="login-senha"
+            placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <button class="btn-submit" id="btn-entrar" onclick="fazerLogin()">
+          Entrar
+        </button>
+
+        <p class="link-text">
+          Não tem conta?
+          <a href="#" onclick="trocarAba('criar'); return false;">Criar agora</a>
+        </p>
+      </div>
+
+      <!-- ── ABA: CRIAR CONTA ── -->
+      <div class="form-panel" id="panel-criar">
+        <div class="form-group">
+          <label class="form-label" for="reg-nome">Nome completo</label>
+          <input class="form-input" type="text" id="reg-nome"
+            placeholder="Seu nome completo" autocomplete="name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">E-mail</label>
+          <input class="form-input" type="email" id="reg-email"
+            placeholder="nome@escola.edu.br" autocomplete="email">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="reg-senha">Senha</label>
+            <input class="form-input" type="password" id="reg-senha"
+              placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-confirmar-senha">Confirmar senha</label>
+            <input class="form-input" type="password" id="reg-confirmar-senha"
+              placeholder="Repita a senha" autocomplete="new-password">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-perfil">Perfil</label>
+          <select class="form-select" id="reg-perfil" onchange="toggleCamposAluno()">
+            <option value="ALUNO">Aluno</option>
+            <option value="ADMIN">Administrador</option>
+          </select>
+        </div>
+
+        <!-- Campos exclusivos para ALUNO -->
+        <div id="campos-aluno">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="reg-nivel">Nível de ensino</label>
+              <select class="form-select" id="reg-nivel">
+                <option value="FUNDAMENTAL_I">Fundamental I</option>
+                <option value="FUNDAMENTAL_II">Fundamental II</option>
+                <option value="MEDIO" selected>Médio</option>
+                <option value="ENEM">ENEM</option>
+                <option value="EJA">EJA</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reg-serie">Série</label>
+              <input class="form-input" type="text" id="reg-serie"
+                placeholder="Ex: 9º Ano">
+            </div>
+          </div>
+        </div>
+
+        <!-- Campo exclusivo para ADMIN -->
+        <div class="form-group campo-oculto" id="campo-admin-token">
+          <label class="form-label" for="reg-admin-token">Chave de administrador</label>
+          <input class="form-input" type="password" id="reg-admin-token"
+            placeholder="Token secreto fornecido pela SEED">
+          <p class="form-hint">Necessário para criar um perfil de administrador.</p>
+        </div>
+
+        <button class="btn-submit" id="btn-criar" onclick="criarConta()">
+          Criar conta
+        </button>
+
+        <p class="link-text">
+          Já tenho conta.
+          <a href="#" onclick="trocarAba('entrar'); return false;">Entrar</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>
