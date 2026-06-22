@@ -854,21 +854,10 @@ async function _iniciarProva(provaId, tipo, escolha) {
     exam.provaId       = provaId;
     exam.provaInfo     = info;
     exam.tentativaId   = dados.tentativa_id;
-    exam.totalQuestoes = dados.total_questoes;
 
-    exam.questoesCache.push({
-      id:             dados.questao_id,
-      enunciado:      dados.enunciado,
-      alternativas:   dados.alternativas || [],
-      questao_numero: dados.questao_numero,
-    });
-
-    renderQuestaoExam();
+    // Carrega a prova INTEIRA (todas as questões) — permite navegar/pular/trocar.
+    await carregarQuestoesExam();
     irPara('realizar-prova');
-
-    const tempoSegundos = dados.tempo_restante_segundos
-      ?? (info?.tempo_limite ? info.tempo_limite * 60 : null);
-    if (tempoSegundos) iniciarTimer(tempoSegundos);
 
   } finally {
     setLoading(false);
@@ -1017,61 +1006,75 @@ function cancelarMinhaReserva(reservaId, provaTitulo) {
 
 
 
-/** Continua uma tentativa EM ANDAMENTO entrando na questão atual (questao_atual). */
+/**
+ * Carrega TODAS as questões da tentativa (a prova inteira) e monta o exame.
+ * Usado por iniciar / continuar / retomar. Pré-preenche as respostas já dadas
+ * e posiciona na primeira questão ainda não respondida.
+ */
+async function carregarQuestoesExam() {
+  const dados = await apiFetch(`/simulados/${exam.tentativaId}/questoes`);
+  exam.totalQuestoes = dados.total_questoes;
+  exam.questoesCache = (dados.questoes || []).map(q => ({
+    id:             q.questao_id,
+    enunciado:      q.enunciado,
+    alternativas:   q.alternativas || [],
+    questao_numero: q.numero,
+    imagem_url:     q.imagem_url || null,
+  }));
+  exam.respostasSalvas = {};
+  exam.enviadas = new Set();
+  Object.entries(dados.respostas || {}).forEach(([qid, altId]) => {
+    exam.respostasSalvas[Number(qid)] = altId;
+    exam.enviadas.add(Number(qid));
+  });
+  // Posiciona na 1ª questão ainda não respondida (ou na primeira).
+  const idx = exam.questoesCache.findIndex(q => exam.respostasSalvas[q.id] === undefined);
+  exam.indiceAtual = idx >= 0 ? idx : 0;
+  const atualId = exam.questoesCache[exam.indiceAtual]?.id;
+  exam.altSelecionadaAgora = exam.respostasSalvas[atualId] ?? null;
+  renderQuestaoExam();
+  if (dados.tempo_restante_segundos) iniciarTimer(dados.tempo_restante_segundos);
+}
+
+/** Erro ao entrar/continuar/retomar (ex.: tempo esgotado) → volta para a lista. */
+function _tratarErroEntrarProva(err) {
+  const msg = (err && err.message) || '';
+  if (/tempo esgotad|finalizad|prazo|expirou/i.test(msg)) {
+    showToast('Esta prova já foi encerrada (tempo esgotado). Veja o resultado em Provas.', 'warning', 5000);
+    irPara('provas');
+  } else {
+    showToast(msg || 'Não foi possível abrir a prova.', 'danger');
+  }
+}
+
+/** Continua uma tentativa EM ANDAMENTO (carrega a prova inteira). */
 async function continuarProva(tentativaId, tipo = 'SIMULADO') {
   setLoading(true);
   try {
-    const dados = await apiFetch(`/simulados/${tentativaId}/questao_atual`);
-
     resetarExam();
-    exam.tipo          = tipo;
-    exam.tentativaId   = tentativaId;
-    exam.totalQuestoes = dados.total_questoes;
-
-    exam.questoesCache.push({
-      id:             dados.questao_id,
-      enunciado:      dados.enunciado,
-      alternativas:   dados.alternativas || [],
-      questao_numero: dados.questao_numero,
-    });
-
-    renderQuestaoExam();
+    exam.tipo        = tipo;
+    exam.tentativaId = tentativaId;
+    await carregarQuestoesExam();
     irPara('realizar-prova');
-
-    if (dados.tempo_restante_segundos) iniciarTimer(dados.tempo_restante_segundos);
-
   } catch (err) {
-    showToast(err.message || 'Não foi possível continuar a prova.', 'danger');
+    _tratarErroEntrarProva(err);
   } finally {
     setLoading(false);
   }
 }
 
-/** Retoma um simulado pausado. */
+/** Retoma um simulado pausado (un-pausa e carrega a prova inteira). */
 async function retomarProva(tentativaId) {
   setLoading(true);
   try {
-    const dados = await apiFetch(`/simulados/${tentativaId}/retomar`, { method: 'PATCH' });
-
+    await apiFetch(`/simulados/${tentativaId}/retomar`, { method: 'PATCH' });
     resetarExam();
-    exam.tipo         = 'SIMULADO';
-    exam.tentativaId  = tentativaId;
-    exam.totalQuestoes = dados.total_questoes;
-
-    exam.questoesCache.push({
-      id:            dados.questao_id,
-      enunciado:     dados.enunciado,
-      alternativas:  dados.alternativas || [],
-      questao_numero: dados.questao_numero,
-    });
-
-    renderQuestaoExam();
+    exam.tipo        = 'SIMULADO';
+    exam.tentativaId = tentativaId;
+    await carregarQuestoesExam();
     irPara('realizar-prova');
-
-    if (dados.tempo_restante_segundos) iniciarTimer(dados.tempo_restante_segundos);
-
   } catch (err) {
-    showToast(err.message || 'Não foi possível retomar a prova.', 'danger');
+    _tratarErroEntrarProva(err);
   } finally {
     setLoading(false);
   }
@@ -1265,53 +1268,39 @@ async function salvarResposta(silencioso = false) {
     return false;
   }
 
-  // Se já enviada, só atualiza localmente
-  if (exam.enviadas.has(q.id)) {
-    exam.respostasSalvas[q.id] = alt;
+  // Nada mudou em relação ao que já está salvo → não precisa reenviar.
+  if (exam.respostasSalvas[q.id] === alt) {
     return true;
   }
 
   try {
     const endpoint = exam.tipo === 'SIMULADO' ? '/simulados/responder' : '/certificacoes/responder';
-    const resp = await apiFetch(endpoint, {
+    await apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        tentativa_id: exam.tentativaId,
-        questao_id:   q.id,
+        tentativa_id:   exam.tentativaId,
+        questao_id:     q.id,
         alternativa_id: alt,
       }),
     });
 
     exam.respostasSalvas[q.id] = alt;
     exam.enviadas.add(q.id);
+    atualizarNavGrid();
 
-    // Se o servidor retornou a próxima questão, adiciona ao cache
-    if (!resp.finalizado && resp.proxima_questao_id) {
-      const jaTemProxima = exam.questoesCache.length > exam.indiceAtual + 1;
-      if (!jaTemProxima) {
-        exam.questoesCache.push({
-          id:            resp.proxima_questao_id,
-          enunciado:     resp.proxima_questao_enunciado,
-          alternativas:  resp.proximas_alternativas || [],
-          questao_numero: resp.questao_numero,
-        });
-        exam.totalQuestoes = resp.total_questoes || exam.totalQuestoes;
-      }
-    }
-
-    if (!silencioso) showToast('Resposta salva!', 'success', 1800);
-
-    // Prova finalizada automaticamente pelo servidor
-    if (resp.finalizado) {
-      pararTimer();
-      await carregarResultado();
-      return true;
-    }
-
+    if (!silencioso) showToast('Resposta salva!', 'success', 1500);
     return true;
 
   } catch (err) {
-    if (!silencioso) showToast(err.message || 'Erro ao salvar resposta.', 'danger');
+    const msg = (err && err.message) || '';
+    if (/tempo esgotad/i.test(msg)) {
+      // O servidor encerrou a prova por tempo — segue direto para o resultado.
+      pararTimer();
+      showToast('Tempo esgotado. A prova foi encerrada.', 'warning', 4000);
+      await carregarResultado();
+      return false;
+    }
+    if (!silencioso) showToast(msg || 'Erro ao salvar resposta.', 'danger');
     return false;
   }
 }
@@ -1319,43 +1308,66 @@ async function salvarResposta(silencioso = false) {
 /** Botão Anterior / Próxima */
 async function navegarQuestao(direcao) {
   if (direcao === 1) {
-    // Avançar: salva primeiro
     const q = exam.questoesCache[exam.indiceAtual];
-    const temAlt = exam.questoesCache[exam.indiceAtual]?.alternativas?.length > 0;
-
-    if (temAlt && exam.altSelecionadaAgora === null && !exam.enviadas.has(q?.id)) {
-      document.getElementById('exam-alert').textContent = 'Selecione uma alternativa.';
-      document.getElementById('exam-alert').className   = 'alert-box error show';
-      return;
-    }
-
     const isUltima = exam.indiceAtual === exam.totalQuestoes - 1;
+    const temAlt = q?.alternativas?.length > 0;
+    const selecionou = exam.altSelecionadaAgora !== null;
+    const jaRespondida = exam.respostasSalvas[q?.id] !== undefined;
 
-    if (exam.altSelecionadaAgora !== null && !exam.enviadas.has(q?.id)) {
+    // Salva se a seleção atual difere do que já está salvo.
+    if (selecionou && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
       const ok = await salvarResposta(true);
       if (!ok) return;
     }
 
+    // Última questão → finalizar (não exige resposta; o modal avisa pendências).
     if (isUltima) {
       confirmarFinalizarProva();
       return;
     }
 
-    if (exam.indiceAtual < exam.questoesCache.length - 1) {
-      exam.indiceAtual++;
-      exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
-      renderQuestaoExam();
-    } else {
-      showToast('Sem próxima questão disponível ainda.', 'warning');
+    // Não é a última: exige uma alternativa OU usar "Pular questão".
+    if (temAlt && !selecionou && !jaRespondida) {
+      const alerta = document.getElementById('exam-alert');
+      alerta.textContent = 'Selecione uma alternativa para avançar — ou use "Pular questão".';
+      alerta.className = 'alert-box error show';
+      return;
     }
 
+    exam.indiceAtual++;
+    exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
+    renderQuestaoExam();
+
   } else {
-    // Voltar
+    // Voltar — salva alteração da atual antes, se houver.
     if (exam.indiceAtual > 0) {
+      const q = exam.questoesCache[exam.indiceAtual];
+      if (exam.altSelecionadaAgora !== null && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
+        await salvarResposta(true);
+      }
       exam.indiceAtual--;
       exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
       renderQuestaoExam();
     }
+  }
+}
+
+/** Botão "Pular questão" → abre a confirmação. */
+function pularQuestao() {
+  if (exam.indiceAtual >= exam.totalQuestoes - 1) {
+    showToast('Esta é a última questão. Use "Finalizar prova".', 'info');
+    return;
+  }
+  openModal('modal-pular');
+}
+
+/** Confirma o pulo → avança SEM registrar resposta (pode voltar depois). */
+function confirmarPularQuestao() {
+  closeModal('modal-pular');
+  if (exam.indiceAtual < exam.totalQuestoes - 1) {
+    exam.indiceAtual++;
+    exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
+    renderQuestaoExam();
   }
 }
 
@@ -1423,6 +1435,19 @@ function confirmarFinalizarProva() {
 async function finalizarProva() {
   closeModal('modal-finalizar');
   pararTimer();
+  try {
+    // Salva a questão atual se houver seleção ainda não enviada.
+    const q = exam.questoesCache[exam.indiceAtual];
+    if (exam.altSelecionadaAgora !== null && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
+      await salvarResposta(true);
+    }
+    // Finalização EXPLÍCITA no servidor (calcula a nota; não-respondidas = erradas).
+    if (exam.tentativaId) {
+      await apiFetch(`/simulados/${exam.tentativaId}/finalizar`, { method: 'POST' });
+    }
+  } catch (err) {
+    // Se já estava concluída (ex.: tempo esgotado), apenas segue para o resultado.
+  }
   await carregarResultado();
 }
 

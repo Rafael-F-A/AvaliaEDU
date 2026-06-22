@@ -245,22 +245,9 @@ def responder_questao(dados, aluno, db):
 
     ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
     ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
-    total = len(ordem_ids)
 
-    respondidas_antes = db.query(models.Resposta).filter(
-        models.Resposta.tentativa_id == tentativa.id
-    ).count()
-
-    # A-02: navegação estritamente em ordem. A questão enviada precisa ser a
-    # questão atual esperada (ordem_ids[respondidas]); isso unifica o critério
-    # de avanço com questao_atual/retomar e evita pular/repetir/IndexError.
-    if respondidas_antes >= total:
-        raise HTTPException(status_code=400, detail="Este simulado já foi finalizado.")
-    if dados.questao_id != ordem_ids[respondidas_antes]:
-        raise HTTPException(
-            status_code=400,
-            detail="Responda as questões na ordem apresentada.",
-        )
+    if dados.questao_id not in ordem_ids:
+        raise HTTPException(status_code=400, detail="Questão não pertence a este simulado.")
 
     alternativa = db.query(models.Alternativa).filter(
         models.Alternativa.id == dados.alternativa_id,
@@ -269,41 +256,34 @@ def responder_questao(dados, aluno, db):
     if not alternativa:
         raise HTTPException(status_code=404, detail="Alternativa inválida para esta questão.")
 
-    db.add(models.Resposta(
-        tentativa_id=tentativa.id,
-        questao_id=dados.questao_id,
-        alternativa_id=dados.alternativa_id,
-        is_correta=alternativa.is_correta,
-        data_resposta=datetime.now(timezone.utc),
-    ))
+    # Upsert: o aluno pode responder em QUALQUER ordem (pular e voltar) e TROCAR a
+    # resposta antes de finalizar. A finalização é EXPLÍCITA (POST .../finalizar);
+    # responder apenas registra/atualiza a resposta.
+    resposta = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id,
+        models.Resposta.questao_id == dados.questao_id,
+    ).first()
+    if resposta:
+        resposta.alternativa_id = alternativa.id
+        resposta.is_correta = alternativa.is_correta
+        resposta.data_resposta = datetime.now(timezone.utc)
+    else:
+        db.add(models.Resposta(
+            tentativa_id=tentativa.id,
+            questao_id=dados.questao_id,
+            alternativa_id=alternativa.id,
+            is_correta=alternativa.is_correta,
+            data_resposta=datetime.now(timezone.utc),
+        ))
     db.commit()
 
-    respondidas = respondidas_antes + 1
-
-    if respondidas >= total:
-        acertos = db.query(models.Resposta).filter(
-            models.Resposta.tentativa_id == tentativa.id,
-            models.Resposta.is_correta == True,
-        ).count()
-        nota = round((acertos / total) * 10, 2)
-        tentativa.status = "CONCLUIDA"
-        tentativa.data_fim = datetime.now(timezone.utc)
-        tentativa.nota = nota
-        tentativa.resultado = "APROVADO" if nota >= (tentativa.prova.nota_minima or 6.0) else "REPROVADO"
-        db.commit()
-        return {"finalizado": True, "nota_final": nota}
-
-    proxima = db.query(models.Questao).filter(
-        models.Questao.id == ordem_ids[respondidas]
-    ).first()
-    alternativas = _alternativas_ordenadas(proxima, tentativa)
+    respondidas = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id
+    ).count()
     return {
         "finalizado": False,
-        "proxima_questao_id": proxima.id,
-        "proxima_questao_enunciado": proxima.enunciado,
-        "proximas_alternativas": alternativas,
-        "questao_numero": respondidas + 1,
-        "total_questoes": total,
+        "questao_numero": respondidas,
+        "total_questoes": len(ordem_ids),
     }
 
 def pausar_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict:
@@ -479,6 +459,7 @@ def questao_atual(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict
         raise HTTPException(status_code=403, detail="Essa tentativa não pertence a você.")
     if tentativa.status != "EM_ANDAMENTO":
         raise HTTPException(status_code=400, detail="Simulado não está em andamento.")
+    _verificar_tempo(tentativa, db)
 
     ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
     ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
@@ -507,4 +488,104 @@ def questao_atual(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict
         "total_questoes": len(ordem_ids),
         "tempo_restante_segundos": tempo_restante,
         "modalidade": tentativa.modalidade,
+    }
+
+
+def listar_questoes_exam(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict:
+    """Retorna TODAS as questões da tentativa na ordem persistida, com as
+    alternativas públicas (sem gabarito) e o mapa de respostas já dadas — para o
+    front carregar a prova inteira e navegar/pular/trocar respostas livremente."""
+    tentativa = db.query(models.Tentativa).filter(models.Tentativa.id == tentativa_id).first()
+    if not tentativa:
+        raise HTTPException(status_code=404, detail="Tentativa não encontrada.")
+    if tentativa.aluno_id != aluno.id:
+        raise HTTPException(status_code=403, detail="Essa tentativa não pertence a você.")
+    if tentativa.status == "PAUSADO":
+        raise HTTPException(status_code=400, detail="Retome o simulado antes de continuar.")
+    if tentativa.status != "EM_ANDAMENTO":
+        raise HTTPException(status_code=400, detail="Este simulado já foi finalizado.")
+    _verificar_tempo(tentativa, db)
+
+    ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
+    ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
+
+    respostas = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id
+    ).all()
+    resp_map = {str(r.questao_id): r.alternativa_id for r in respostas}
+
+    questoes_out = []
+    for i, qid in enumerate(ordem_ids):
+        questao = db.query(models.Questao).filter(models.Questao.id == qid).first()
+        if not questao:
+            continue
+        questoes_out.append({
+            "questao_id": questao.id,
+            "enunciado": questao.enunciado,
+            "numero": i + 1,
+            "imagem_url": questao.imagem_url,
+            "alternativas": _alternativas_ordenadas(questao, tentativa),
+        })
+
+    tempo_restante = None
+    if tentativa.prova.tempo_limite:
+        seg = _segundos_passados(tentativa)
+        tempo_restante = max(0, tentativa.prova.tempo_limite * 60 - seg)
+
+    return {
+        "tentativa_id": tentativa.id,
+        "tipo": tentativa.tipo,
+        "total_questoes": len(ordem_ids),
+        "tempo_restante_segundos": tempo_restante,
+        "modalidade": tentativa.modalidade,
+        "questoes": questoes_out,
+        "respostas": resp_map,
+    }
+
+
+def finalizar_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict:
+    """Finaliza a tentativa AGORA (explícito): calcula a nota com base nas
+    respostas dadas (não respondidas contam como erradas). Idempotente se a
+    tentativa já estiver concluída."""
+    tentativa = db.query(models.Tentativa).filter(models.Tentativa.id == tentativa_id).first()
+    if not tentativa:
+        raise HTTPException(status_code=404, detail="Tentativa não encontrada.")
+    if tentativa.aluno_id != aluno.id:
+        raise HTTPException(status_code=403, detail="Essa tentativa não pertence a você.")
+
+    ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
+    ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
+    total = len(ordem_ids)
+    respondidas = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id
+    ).count()
+
+    if tentativa.status == "CONCLUIDA":
+        return {
+            "finalizado": True,
+            "nota": float(tentativa.nota or 0),
+            "resultado": tentativa.resultado or "REPROVADO",
+            "total_questoes": total,
+            "total_respondidas": respondidas,
+        }
+    if tentativa.status not in ("EM_ANDAMENTO", "PAUSADO"):
+        raise HTTPException(status_code=400, detail="Tentativa não pode ser finalizada.")
+
+    acertos = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id,
+        models.Resposta.is_correta == True,
+    ).count()
+    nota = round((acertos / total) * 10, 2) if total else 0.0
+    tentativa.status = "CONCLUIDA"
+    tentativa.data_fim = datetime.now(timezone.utc)
+    tentativa.nota = nota
+    tentativa.resultado = "APROVADO" if nota >= (tentativa.prova.nota_minima or 6.0) else "REPROVADO"
+    db.commit()
+
+    return {
+        "finalizado": True,
+        "nota": nota,
+        "resultado": tentativa.resultado,
+        "total_questoes": total,
+        "total_respondidas": respondidas,
     }

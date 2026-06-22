@@ -318,6 +318,41 @@ class QuestaoAtualResponse(BaseModel):
     total_questoes: int
     tempo_restante_segundos: Optional[float] = None
 
+
+class QuestaoExamItem(BaseModel):
+    questao_id: int
+    enunciado: str
+    numero: int
+    imagem_url: Optional[str] = None
+    alternativas: list[AlternativaPublica]
+
+    @field_serializer('imagem_url')
+    def _ser_q_img(self, v, _info):
+        return _imagem_url_fresca(v)
+
+    class Config:
+        from_attributes = True
+
+
+class QuestoesExamResponse(BaseModel):
+    """Todas as questões da tentativa (ordem persistida) + respostas já dadas.
+    Permite ao front carregar a prova inteira e navegar/pular livremente."""
+    tentativa_id: int
+    tipo: str
+    total_questoes: int
+    tempo_restante_segundos: Optional[float] = None
+    modalidade: Optional[str] = None
+    questoes: list[QuestaoExamItem]
+    respostas: dict  # { "<questao_id>": alternativa_id }
+
+
+class FinalizarSimuladoResponse(BaseModel):
+    finalizado: bool
+    nota: float
+    resultado: str
+    total_questoes: int
+    total_respondidas: int
+
 # Geolocalização / Locais
 
 class LocalBase(BaseModel):

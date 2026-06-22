@@ -315,6 +315,7 @@
             <div style="display:flex; gap:12px; margin-top:24px; flex-wrap:wrap;">
               <button class="btn btn-ghost" id="btn-anterior" onclick="navegarQuestao(-1)">← Anterior</button>
               <button class="btn btn-secondary" onclick="salvarResposta()" id="btn-salvar-resp">Salvar resposta</button>
+              <button class="btn btn-ghost" id="btn-pular" onclick="pularQuestao()">Pular questão</button>
               <button class="btn btn-primary" id="btn-proxima" onclick="navegarQuestao(1)">Próxima →</button>
             </div>
 
@@ -807,6 +808,28 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close-modal="modal-finalizar">Revisar respostas</button>
       <button class="btn btn-primary" onclick="finalizarProva()">Confirmar e finalizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MODAL: CONFIRMAR PULAR QUESTÃO
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-pular">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Pular questão?</h2>
+      <button class="modal-close" data-close-modal="modal-pular">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px; color:var(--c-text-muted); line-height:1.6;">
+        Certeza que deseja pular essa questão? Você pode voltar a ela depois pela
+        navegação. Questões não respondidas contam como erradas no resultado.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-pular">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPularQuestao()">Pular questão</button>
     </div>
   </div>
 </div>

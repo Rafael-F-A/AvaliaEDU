@@ -92,3 +92,29 @@ def historico_simulados(
     aluno: models.Usuario = Depends(get_usuario_atual),
 ):
     return simulado_service.historico_simulados(aluno, db)
+
+
+@router.get(
+    "/{tentativa_id}/questoes",
+    response_model=schemas.QuestoesExamResponse,
+    summary="Lista TODAS as questões da tentativa (carregar a prova inteira)",
+)
+def listar_questoes(
+    tentativa_id: int,
+    db: Session = Depends(get_db),
+    aluno: models.Usuario = Depends(get_usuario_atual),
+):
+    return simulado_service.listar_questoes_exam(tentativa_id, aluno, db)
+
+
+@router.post(
+    "/{tentativa_id}/finalizar",
+    response_model=schemas.FinalizarSimuladoResponse,
+    summary="Finaliza a tentativa agora (nota com base nas respondidas)",
+)
+def finalizar(
+    tentativa_id: int,
+    db: Session = Depends(get_db),
+    aluno: models.Usuario = Depends(get_usuario_atual),
+):
+    return simulado_service.finalizar_simulado(tentativa_id, aluno, db)
