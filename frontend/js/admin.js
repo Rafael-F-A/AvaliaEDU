@@ -62,9 +62,6 @@ let _questaoImagemAtual = null;
 /** Linha (.alt-row) de alternativa aguardando upload de imagem. */
 let _altImagemUploadAtiva = null;
 
-/** Callback armazenado para o modal de confirmação genérico. */
-let _confirmarCallback = null;
-
 /* ─────────────────────────────────────────
    2. INICIALIZAÇÃO
    ─────────────────────────────────────── */
@@ -131,15 +128,17 @@ function configurarNavegacao() {
 async function carregarDashboard() {
   try {
     // Chamadas em paralelo — falhas individuais não quebram o painel
-    const [provasRes, usuariosRes, locaisRes] = await Promise.allSettled([
+    const [provasRes, usuariosRes, locaisRes, relatorioRes] = await Promise.allSettled([
       apiFetchAll('/provas', 'provas'),
       apiFetchAll('/usuarios', 'usuarios'),
       apiFetch('/locais'),
+      apiFetch('/relatorios/desempenho'),
     ]);
 
     const provas   = provasRes.status   === 'fulfilled' ? (provasRes.value?.provas   ?? provasRes.value   ?? []) : [];
     const usuarios = usuariosRes.status === 'fulfilled' ? (usuariosRes.value?.usuarios ?? usuariosRes.value ?? []) : [];
     const locais   = locaisRes.status   === 'fulfilled' ? (locaisRes.value?.locais   ?? locaisRes.value   ?? []) : [];
+    const relatorio = relatorioRes.status === 'fulfilled' ? (relatorioRes.value ?? {}) : {};
 
     // Métricas
     const publicadas  = provas.filter(p => p.status === 'PUBLICADA');
@@ -151,8 +150,8 @@ async function carregarDashboard() {
     _setEl('dash-sub-usuarios',    `${usuarios.length} usuário(s) cadastrado(s)`);
     _setEl('dash-total-locais',    locais.length);
 
-    // Tentativas: não há endpoint global; exibimos traço se não disponível
-    _setEl('dash-total-tentativas', '—');
+    // Tentativas: total de tentativas realizadas, vindo do relatório de desempenho.
+    _setEl('dash-total-tentativas', relatorio.estatisticas_gerais?.total_tentativas ?? '—');
 
     // Tabela de provas recentes (últimas 5 por created_at)
     const recentes = [...provas]
@@ -163,7 +162,7 @@ async function carregarDashboard() {
     tbody.innerHTML = recentes.length
       ? recentes.map(p => `
           <tr>
-            <td class="td-name">${p.titulo}</td>
+            <td class="td-name">${_esc(p.titulo)}</td>
             <td>${badgeTipoProva(p.tipo)}</td>
             <td>${badgeStatusProva(p.status)}</td>
           </tr>`).join('')
@@ -206,8 +205,8 @@ function _renderProvas(lista) {
         data-tipo="${p.tipo || ''}"
         data-status="${p.status || ''}"
         data-nivel="${p.nivel || ''}">
-      <td class="td-name">${p.titulo || '—'}</td>
-      <td class="td-muted">${nivelLabel(p.nivel)}${p.serie ? ' — ' + p.serie : ''}</td>
+      <td class="td-name">${_esc(p.titulo) || '—'}</td>
+      <td class="td-muted">${nivelLabel(p.nivel)}${p.serie ? ' — ' + _esc(p.serie) : ''}</td>
       <td>${badgeTipoProva(p.tipo)}</td>
       <td class="td-muted">${p.total_questoes ?? '—'}</td>
       <td class="td-muted">${p.data_inicio_inscricao ? formatarData(p.data_inicio_inscricao) : '—'}</td>
@@ -585,7 +584,7 @@ async function carregarQuestoes(provaId) {
               Questão ${i + 1} &nbsp;·&nbsp; ${dificuldadeLabel(q.nivel_dificuldade)}
             </div>
             <p style="font-size:14px; color:var(--c-text); line-height:1.6; margin:0 0 12px;">
-              ${q.enunciado || '—'}
+              ${_esc(q.enunciado) || '—'}
             </p>
             <div style="display:flex; flex-direction:column; gap:6px;">
               ${(q.alternativas || [])
@@ -593,7 +592,7 @@ async function carregarQuestoes(provaId) {
                 .map((alt, idx) => `
                   <div style="display:flex; gap:8px; align-items:center; font-size:13px; color:${alt.is_correta ? 'var(--c-success)' : 'var(--c-text-muted)'};">
                     <span style="font-weight:700; min-width:16px;">${String.fromCharCode(65 + idx)}${alt.is_correta ? ' ✓' : ''}</span>
-                    <span>${alt.texto}</span>
+                    <span>${_esc(alt.texto)}</span>
                   </div>`).join('')}
             </div>
           </div>
@@ -1096,12 +1095,12 @@ function _renderComponentes(lista) {
 
   tbody.innerHTML = lista.map(c => `
     <tr data-nome="${(c.nome || '').toLowerCase()}" data-codigo="${(c.codigo || '').toLowerCase()}" data-nivel="${(c.nivel || '').toLowerCase()}">
-      <td class="td-name">${c.nome}</td>
-      <td><span class="badge badge-simulado">${c.codigo || '—'}</span></td>
+      <td class="td-name">${_esc(c.nome)}</td>
+      <td><span class="badge badge-simulado">${_esc(c.codigo) || '—'}</span></td>
       <td class="td-muted">${nivelLabel(c.nivel) || '—'}</td>
-      <td class="td-muted">${c.serie || '—'}</td>
+      <td class="td-muted">${_esc(c.serie) || '—'}</td>
       <td class="td-muted" style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
-        title="${_esc(c.descricao || '')}">${c.descricao || '—'}</td>
+        title="${_esc(c.descricao || '')}">${_esc(c.descricao) || '—'}</td>
       <td>
         <div class="td-actions">
           <button class="btn btn-ghost btn-sm" onclick="abrirModalEditarComponente(${c.id})">Editar</button>
@@ -1465,8 +1464,8 @@ function _renderUsuarios(lista) {
         data-email="${(u.email || '').toLowerCase()}"
         data-perfil="${u.perfil || ''}"
         data-status="${u.status || ''}">
-      <td class="td-name">${u.nome || '—'}</td>
-      <td class="td-muted">${u.email || '—'}</td>
+      <td class="td-name">${_esc(u.nome) || '—'}</td>
+      <td class="td-muted">${_esc(u.email) || '—'}</td>
       <td>
         <span class="badge ${u.perfil === 'ADMIN' ? 'badge-certificacao' : 'badge-aluno'}">
           ${u.perfil === 'ADMIN' ? 'Admin' : 'Aluno'}
@@ -1948,9 +1947,9 @@ function _renderLocais(lista) {
   tbody.innerHTML = lista.map(l => `
     <tr data-nome="${(l.nome || '').toLowerCase()}"
         data-cidade="${(l.cidade || '').toLowerCase()}">
-      <td class="td-name">${l.nome || '—'}</td>
-      <td class="td-muted">${l.cidade || '—'}${l.estado ? ' / ' + l.estado : ''}</td>
-      <td class="td-muted" style="max-width:200px; white-space:normal;">${l.endereco || '—'}</td>
+      <td class="td-name">${_esc(l.nome) || '—'}</td>
+      <td class="td-muted">${_esc(l.cidade) || '—'}${l.estado ? ' / ' + _esc(l.estado) : ''}</td>
+      <td class="td-muted" style="max-width:200px; white-space:normal;">${_esc(l.endereco) || '—'}</td>
       <td class="td-muted">${l.capacidade ?? '—'}</td>
       <td>
         <span class="badge ${l.vagas_restantes > 0 ? 'badge-publicada' : 'badge-rascunho'}">
@@ -2017,16 +2016,16 @@ function _renderReservas(lista) {
   }
 
   tbody.innerHTML = lista.map(r => `
-    <tr data-aluno="${(r.aluno?.nome || '').toLowerCase()}"
-        data-email="${(r.aluno?.email || '').toLowerCase()}"
-        data-prova="${(r.prova_titulo || '').toLowerCase()}"
+    <tr data-aluno="${_esc((r.aluno?.nome || '').toLowerCase())}"
+        data-email="${_esc((r.aluno?.email || '').toLowerCase())}"
+        data-prova="${_esc((r.prova_titulo || '').toLowerCase())}"
         data-status="${r.status || ''}">
       <td class="td-name">
-        ${r.aluno?.nome || '—'}
-        <div class="td-muted" style="font-size:12px;">${r.aluno?.email || ''}</div>
+        ${_esc(r.aluno?.nome) || '—'}
+        <div class="td-muted" style="font-size:12px;">${_esc(r.aluno?.email)}</div>
       </td>
-      <td class="td-muted">${r.prova_titulo || '—'}</td>
-      <td class="td-muted">${r.local?.nome || '—'}${r.local?.cidade ? ' — ' + r.local.cidade : ''}</td>
+      <td class="td-muted">${_esc(r.prova_titulo) || '—'}</td>
+      <td class="td-muted">${_esc(r.local?.nome) || '—'}${r.local?.cidade ? ' — ' + _esc(r.local.cidade) : ''}</td>
       <td class="td-muted">${formatarDataHora(r.data_reserva)}</td>
       <td class="td-muted">${r.data_expiracao ? formatarDataHora(r.data_expiracao) : '—'}</td>
       <td>${_badgeReserva(r.status)}</td>
@@ -2254,7 +2253,7 @@ async function _buscarEExibirRelatorio() {
       tbody.innerHTML = provas.length
         ? provas.map(p => `
             <tr>
-              <td class="td-name">${p.prova_titulo || '—'}</td>
+              <td class="td-name">${_esc(p.prova_titulo) || '—'}</td>
               <td>${badgeTipoProva(p.tipo)}</td>
               <td class="td-muted">${nivelLabel(p.nivel)}</td>
               <td class="td-muted">${p.total_tentativas ?? '—'}</td>
@@ -2346,28 +2345,8 @@ async function exportarRelatorio() {
    15. MODAL DE CONFIRMAÇÃO GENÉRICO
    ─────────────────────────────────────── */
 
-/**
- * Abre o modal de confirmação (exclusão, bloqueio, etc.)
- * @param {string}   titulo    – Título do modal
- * @param {string}   msg       – Mensagem HTML da confirmação
- * @param {Function} callback  – Executado ao confirmar
- */
-function confirmarExclusao(titulo, msg, callback) {
-  document.getElementById('modal-confirmar-titulo').textContent = titulo;
-  document.getElementById('modal-confirmar-msg').innerHTML = msg;
-  _confirmarCallback = callback;
-
-  const btn = document.getElementById('btn-confirmar-acao');
-  btn.onclick = async () => {
-    closeModal('modal-confirmar');
-    if (typeof _confirmarCallback === 'function') {
-      await _confirmarCallback();
-      _confirmarCallback = null;
-    }
-  };
-
-  openModal('modal-confirmar');
-}
+// confirmarExclusao(titulo, msg, callback) agora vive em global.js
+// (carregado ANTES de admin.js) e é autossuficiente.
 
 /* ─────────────────────────────────────────
    16. CONFIGURAÇÃO DOS FILTROS (event listeners)
@@ -2421,15 +2400,8 @@ function _setEl(id, valor) {
   if (el) el.textContent = valor ?? '—';
 }
 
-/** Escapa HTML para uso em atributos e innerHTML seguro. */
-function _esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+// _esc(str) agora vive em global.js (carregado ANTES de admin.js)
+// e é exposto como window._esc — não redefinir aqui.
 
 /** Converte ISO string para formato datetime-local (YYYY-MM-DDTHH:mm). */
 function _toDatetimeLocal(iso) {

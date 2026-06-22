@@ -19,12 +19,53 @@ def _data_aware(dt: datetime) -> datetime:
 def _segundos_passados(tentativa: models.Tentativa) -> float:
     return (datetime.now(timezone.utc) - _data_aware(tentativa.data_inicio)).total_seconds()
 
+
+def _calcular_nota(tentativa: models.Tentativa, db: Session) -> float:
+    """Calcula a nota com base nas respostas já dadas (mesma fórmula da
+    finalização normal: acertos/total*10, arredondado). Usada também ao
+    encerrar por tempo/expiração, para que tentativa.nota nunca fique NULL."""
+    ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
+    ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
+    total = len(ordem_ids)
+    if total == 0:
+        return 0.0
+    acertos = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id,
+        models.Resposta.is_correta == True,
+    ).count()
+    return round((acertos / total) * 10, 2)
+
+
+def _alternativas_ordenadas(questao: models.Questao, tentativa: models.Tentativa):
+    """Retorna as alternativas da questão na ordem persistida em
+    tentativa.ordem_alternativas (alinha PDF, tela e revisão). Se não houver
+    ordem salva para a questão, cai no comportamento de embaralhar."""
+    ordem_alt_raw = tentativa.ordem_alternativas
+    if ordem_alt_raw:
+        ordem_alt = json.loads(ordem_alt_raw) if isinstance(ordem_alt_raw, str) else ordem_alt_raw
+    else:
+        ordem_alt = {}
+    ids_ordem = ordem_alt.get(str(questao.id))
+    if ids_ordem:
+        por_id = {alt.id: alt for alt in questao.alternativas}
+        ordenadas = [por_id[aid] for aid in ids_ordem if aid in por_id]
+        # garante que nenhuma alternativa nova fique de fora
+        ordenadas += [alt for alt in questao.alternativas if alt.id not in ids_ordem]
+        return ordenadas
+    alternativas = list(questao.alternativas)
+    random.shuffle(alternativas)
+    return alternativas
+
+
 def _verificar_tempo(tentativa: models.Tentativa, db: Session) -> None:
     if tentativa.prova.tempo_limite:
         if _segundos_passados(tentativa) > tentativa.prova.tempo_limite * 60:
             tentativa.status = "CONCLUIDA"
             tentativa.resultado = "REPROVADO"
             tentativa.data_fim = datetime.now(timezone.utc)
+            # A-01: grava a nota com base nas respostas já dadas para que
+            # resultado_simulado não receba nota NULL ao encerrar por tempo.
+            tentativa.nota = _calcular_nota(tentativa, db)
             db.commit()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -37,24 +78,14 @@ def _validar_modalidade_presencial(
     reserva_id: int,
     db: Session,
 ) -> models.Reserva:
-    """US23: valida reserva antes de iniciar prova presencial."""
+    """US23: valida a reserva do aluno antes de iniciar prova presencial.
 
-    # 1. Prova tem locais ativos?
-    tem_local = db.query(models.Reserva).filter(
-        models.Reserva.prova_id == prova.id,
-        models.Reserva.status == "ATIVA",
-    ).first()
+    A disponibilidade presencial é determinada pela reserva ESPECÍFICA do
+    aluno (passos abaixo) — não por reservas ATIVAS de terceiros, o que
+    quebrava após a 1ª reserva virar UTILIZADA (backend-inscr-reserva-3).
+    """
 
-    if not tem_local:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"A prova '{prova.titulo}' não oferece modalidade PRESENCIAL "
-                "ou não há locais com vagas disponíveis."
-            ),
-        )
-
-    # 2. Reserva pertence ao aluno e à prova?
+    # 1. Reserva pertence ao aluno e à prova?
     reserva = db.query(models.Reserva).filter(
         models.Reserva.id == reserva_id,
         models.Reserva.aluno_id == aluno.id,
@@ -67,25 +98,30 @@ def _validar_modalidade_presencial(
             detail="Reserva não encontrada para este aluno e prova.",
         )
 
-    # 3. Reserva ativa?
+    # 2. Reserva ativa?
     if reserva.status != "ATIVA":
         raise HTTPException(
             status_code=409,
             detail=f"Reserva com status '{reserva.status}'. Apenas ATIVA permite iniciar.",
         )
 
-    # 4. Expirou?
+    # 3. Expirou?
     if reserva.data_expiracao:
         expiracao = _data_aware(reserva.data_expiracao)
         if datetime.now(timezone.utc) > expiracao:
             reserva.status = "EXPIRADA"
+            # A-04: devolve a vaga ao local ao expirar (sem ultrapassar a
+            # capacidade), espelhando listar_minhas_reservas — evita vazamento.
+            local_exp = db.query(models.Local).filter(models.Local.id == reserva.local_id).first()
+            if local_exp:
+                local_exp.vagas_restantes = min(local_exp.capacidade, local_exp.vagas_restantes + 1)
             db.commit()
             raise HTTPException(
                 status_code=410,
                 detail="Sua reserva expirou. Crie uma nova reserva em POST /reservas/.",
             )
 
-    # 5. Local com vaga?
+    # 4. Local com vaga?
     local = db.query(models.Local).filter(models.Local.id == reserva.local_id).first()
     if not local or local.vagas_restantes <= 0:
         raise HTTPException(
@@ -147,6 +183,15 @@ def iniciar_simulado(
     ordem_ids = [q.id for q in questoes]
     random.shuffle(ordem_ids)
 
+    # provas-4 / cert-6: embaralha as alternativas UMA vez e persiste a ordem,
+    # para que PDF, tela e revisão fiquem consistentes (sem reembaralhar a cada
+    # chamada). Formato: {str(questao_id): [alternativa_id, ...]}.
+    ordem_alt = {}
+    for q in questoes:
+        alt_ids = [a.id for a in q.alternativas]
+        random.shuffle(alt_ids)
+        ordem_alt[str(q.id)] = alt_ids
+
     tentativa = models.Tentativa(
         aluno_id=aluno.id,
         prova_id=prova.id,
@@ -154,6 +199,7 @@ def iniciar_simulado(
         status="EM_ANDAMENTO",
         data_inicio=datetime.now(timezone.utc),
         ordem_questoes=json.dumps(ordem_ids),
+        ordem_alternativas=json.dumps(ordem_alt),
         modalidade=modalidade,
     )
     db.add(tentativa)
@@ -171,8 +217,7 @@ def iniciar_simulado(
         models.Questao.id == ordem_ids[0]
     ).first()
 
-    alternativas = list(primeira_questao.alternativas)
-    random.shuffle(alternativas)
+    alternativas = _alternativas_ordenadas(primeira_questao, tentativa)
 
     return {
         "tentativa_id": tentativa.id,
@@ -200,9 +245,22 @@ def responder_questao(dados, aluno, db):
 
     ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
     ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
+    total = len(ordem_ids)
 
-    if dados.questao_id not in ordem_ids:
-        raise HTTPException(status_code=400, detail="Questão não pertence a este simulado.")
+    respondidas_antes = db.query(models.Resposta).filter(
+        models.Resposta.tentativa_id == tentativa.id
+    ).count()
+
+    # A-02: navegação estritamente em ordem. A questão enviada precisa ser a
+    # questão atual esperada (ordem_ids[respondidas]); isso unifica o critério
+    # de avanço com questao_atual/retomar e evita pular/repetir/IndexError.
+    if respondidas_antes >= total:
+        raise HTTPException(status_code=400, detail="Este simulado já foi finalizado.")
+    if dados.questao_id != ordem_ids[respondidas_antes]:
+        raise HTTPException(
+            status_code=400,
+            detail="Responda as questões na ordem apresentada.",
+        )
 
     alternativa = db.query(models.Alternativa).filter(
         models.Alternativa.id == dados.alternativa_id,
@@ -210,13 +268,6 @@ def responder_questao(dados, aluno, db):
     ).first()
     if not alternativa:
         raise HTTPException(status_code=404, detail="Alternativa inválida para esta questão.")
-
-    ja_respondida = db.query(models.Resposta).filter(
-        models.Resposta.tentativa_id == tentativa.id,
-        models.Resposta.questao_id == dados.questao_id,
-    ).first()
-    if ja_respondida:
-        raise HTTPException(status_code=400, detail="Você já respondeu esta questão.")
 
     db.add(models.Resposta(
         tentativa_id=tentativa.id,
@@ -227,10 +278,7 @@ def responder_questao(dados, aluno, db):
     ))
     db.commit()
 
-    total = len(ordem_ids)
-    respondidas = db.query(models.Resposta).filter(
-        models.Resposta.tentativa_id == tentativa.id
-    ).count()
+    respondidas = respondidas_antes + 1
 
     if respondidas >= total:
         acertos = db.query(models.Resposta).filter(
@@ -245,12 +293,10 @@ def responder_questao(dados, aluno, db):
         db.commit()
         return {"finalizado": True, "nota_final": nota}
 
-    idx_atual = ordem_ids.index(dados.questao_id)
     proxima = db.query(models.Questao).filter(
-        models.Questao.id == ordem_ids[idx_atual + 1]
+        models.Questao.id == ordem_ids[respondidas]
     ).first()
-    alternativas = list(proxima.alternativas)
-    random.shuffle(alternativas)
+    alternativas = _alternativas_ordenadas(proxima, tentativa)
     return {
         "finalizado": False,
         "proxima_questao_id": proxima.id,
@@ -306,6 +352,8 @@ def retomar_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> d
             tentativa.status = "CONCLUIDA"
             tentativa.resultado = "REPROVADO"
             tentativa.data_fim = datetime.now(timezone.utc)
+            # A-01: grava a nota (com base no respondido) para não ficar NULL.
+            tentativa.nota = _calcular_nota(tentativa, db)
             db.commit()
             raise HTTPException(status_code=410, detail="O prazo para retomar expirou. Simulado encerrado.")
 
@@ -323,8 +371,7 @@ def retomar_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> d
 
     respondidas = db.query(models.Resposta).filter(models.Resposta.tentativa_id == tentativa.id).count()
     questao = db.query(models.Questao).filter(models.Questao.id == ordem_ids[respondidas]).first()
-    alternativas = list(questao.alternativas)
-    random.shuffle(alternativas)
+    alternativas = _alternativas_ordenadas(questao, tentativa)
     tempo_restante = None
     if tentativa.prova.tempo_limite:
         seg = _segundos_passados(tentativa)
@@ -342,7 +389,7 @@ def retomar_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> d
     }
 
 
-def resultado_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict:
+def resultado_simulado(tentativa_id: int, aluno: models.Usuario, db: Session, incluir_gabarito: bool = True) -> dict:
     tentativa = db.query(models.Tentativa).filter(models.Tentativa.id == tentativa_id).first()
     if not tentativa:
         raise HTTPException(status_code=404, detail="Tentativa não encontrada.")
@@ -352,21 +399,24 @@ def resultado_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) ->
         raise HTTPException(status_code=400, detail="Simulado ainda não finalizado.")
 
     respostas = db.query(models.Resposta).filter(models.Resposta.tentativa_id == tentativa.id).all()
+    # A-05 / LOGICA-11/12: SIMULADO detalha escolhida x correta; CERTIFICACAO
+    # NÃO expõe gabarito (incluir_gabarito=False) — só aprovado/reprovado e nota.
     detalhes = []
-    for resp in respostas:
-        questao = db.query(models.Questao).filter(models.Questao.id == resp.questao_id).first()
-        alt_escolhida = db.query(models.Alternativa).filter(models.Alternativa.id == resp.alternativa_id).first()
-        alt_correta = db.query(models.Alternativa).filter(
-            models.Alternativa.questao_id == resp.questao_id,
-            models.Alternativa.is_correta == True,
-        ).first()
-        detalhes.append({
-            "questao_id": questao.id,
-            "enunciado": questao.enunciado,
-            "alternativa_escolhida": alt_escolhida.texto if alt_escolhida else "",
-            "alternativa_correta": alt_correta.texto if alt_correta else "",
-            "acertou": resp.is_correta,
-        })
+    if incluir_gabarito:
+        for resp in respostas:
+            questao = db.query(models.Questao).filter(models.Questao.id == resp.questao_id).first()
+            alt_escolhida = db.query(models.Alternativa).filter(models.Alternativa.id == resp.alternativa_id).first()
+            alt_correta = db.query(models.Alternativa).filter(
+                models.Alternativa.questao_id == resp.questao_id,
+                models.Alternativa.is_correta == True,
+            ).first()
+            detalhes.append({
+                "questao_id": questao.id,
+                "enunciado": questao.enunciado,
+                "alternativa_escolhida": alt_escolhida.texto if alt_escolhida else "",
+                "alternativa_correta": alt_correta.texto if alt_correta else "",
+                "acertou": resp.is_correta,
+            })
 
     ordem_raw = json.loads(tentativa.ordem_questoes) if tentativa.ordem_questoes else []
     ordem_ids = ordem_raw if isinstance(ordem_raw, list) else ordem_raw.get("ordem_ids", [])
@@ -376,7 +426,7 @@ def resultado_simulado(tentativa_id: int, aluno: models.Usuario, db: Session) ->
         "total_questoes": len(ordem_ids),
         "total_acertos": sum(1 for r in respostas if r.is_correta),
         "total_erros": sum(1 for r in respostas if not r.is_correta),
-        "nota": float(tentativa.nota),
+        "nota": float(tentativa.nota or 0),
         "status": tentativa.resultado,
         "modalidade": tentativa.modalidade,
         "respostas": detalhes,
@@ -443,8 +493,7 @@ def questao_atual(tentativa_id: int, aluno: models.Usuario, db: Session) -> dict
     if not questao:
         raise HTTPException(status_code=404, detail="Questão não encontrada.")
 
-    alternativas = list(questao.alternativas)
-    random.shuffle(alternativas)
+    alternativas = _alternativas_ordenadas(questao, tentativa)
     tempo_restante = None
     if tentativa.prova.tempo_limite:
         seg = _segundos_passados(tentativa)

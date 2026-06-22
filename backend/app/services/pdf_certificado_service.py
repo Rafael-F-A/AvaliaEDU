@@ -1,5 +1,6 @@
 import os
 import io
+import logging
 import tempfile
 import qrcode
 from datetime import datetime, timezone
@@ -132,7 +133,8 @@ LOGO_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "assets", "logo_seed.png")
 )
 
-print("LOGO PATH:", LOGO_PATH)
+# Log de diagnóstico do caminho do logo (silencioso em produção)
+logging.debug("LOGO PATH: %s", LOGO_PATH)
 
 def _qr_image(conteudo: str, size: int = 90) -> RLImage:
     """Gera QR code como ReportLab Image a partir de uma string URL."""

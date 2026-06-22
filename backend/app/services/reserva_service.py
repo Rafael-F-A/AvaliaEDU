@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
 from app import models, schemas
@@ -62,14 +63,18 @@ def criar_reserva(
         )
 
     # 2. Local existe?
+    #    Trava a linha do local (SELECT ... FOR UPDATE) dentro da mesma
+    #    transação ANTES de checar duplicata/vagas e criar a reserva, para
+    #    evitar race condition (read-check-then-write) em reservas concorrentes.
     local = db.query(models.Local).filter(
         models.Local.id == dados.local_id,
-    ).first()
+    ).with_for_update().first()
 
     if not local:
         raise HTTPException(status_code=404, detail="Local não encontrado.")
 
     # 3. Reserva duplicada — mesmo aluno + mesma prova com status ATIVA?
+    #    Checada sob o lock do local para serializar com reservas concorrentes.
     reserva_existente = db.query(models.Reserva).filter(
         models.Reserva.aluno_id == aluno.id,
         models.Reserva.prova_id == dados.prova_id,
@@ -111,7 +116,16 @@ def criar_reserva(
     # Decrementa vaga
     local.vagas_restantes -= 1
 
-    db.commit()
+    # Em caso de violação concorrente (ex.: índice único de reserva ativa),
+    # desfaz a transação e responde 409 em vez de 500.
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Conflito ao criar a reserva. Tente novamente.",
+        )
     db.refresh(reserva)
 
     return _serializar_reserva(reserva)
@@ -133,7 +147,10 @@ def listar_minhas_reservas(aluno: models.Usuario, db: Session) -> list:
     for r in reservas:
         if r.status == "ATIVA" and r.data_expiracao and _data_aware(r.data_expiracao) < agora:
             r.status = "EXPIRADA"
-            r.local.vagas_restantes += 1  # devolve a vaga
+            # devolve a vaga sem ultrapassar a capacidade do local
+            r.local.vagas_restantes = min(
+                r.local.capacidade, r.local.vagas_restantes + 1
+            )
             mudou = True
     if mudou:
         db.commit()
@@ -179,10 +196,10 @@ def cancelar_reserva(reserva_id: int, aluno: models.Usuario, db: Session) -> dic
 
     reserva.status = "CANCELADA"
 
-    # Devolve a vaga ao local
+    # Devolve a vaga ao local, sem ultrapassar a capacidade
     local = db.query(models.Local).filter(models.Local.id == reserva.local_id).first()
     if local:
-        local.vagas_restantes += 1
+        local.vagas_restantes = min(local.capacidade, local.vagas_restantes + 1)
 
     db.commit()
 

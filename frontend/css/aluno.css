@@ -369,8 +369,8 @@ body.eja-mode .alternativa-item {
   gap: 14px;
 }
 body.eja-mode .alternativa-item:hover  { background: #cce0ff; border-color: #003d99; }
-body.eja-mode .alternativa-item.selecionada { background: #003d99; border-color: #003d99; }
-body.eja-mode .alternativa-item.selecionada .alt-texto { color: #fff; }
+body.eja-mode .alternativa-item.alt-selecionada { background: #003d99; border-color: #003d99; }
+body.eja-mode .alternativa-item.alt-selecionada .alt-texto { color: #fff; }
 
 body.eja-mode .btn,
 body.eja-mode button:not(.modal-close):not(.nav-toggle-btn) {

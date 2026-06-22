@@ -34,7 +34,8 @@ function getUsuario() {
 function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USR_KEY);
-  window.location.href = 'auth.html';
+  // Padronizado com limparSessao() de global.js: destino do logout é '/'
+  window.location.href = '/';
 }
 
 /**
@@ -141,7 +142,13 @@ async function fazerLogin() {
       body:    JSON.stringify({ email, senha }),
     });
 
-    const data = await res.json();
+    // Protege contra resposta não-JSON (ex.: 502/503 do host devolvendo HTML)
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Servidor indisponível no momento. Tente novamente em instantes.');
+    }
 
     if (!res.ok) {
       // O backend retorna 401 para credenciais erradas, 403 para bloqueado
@@ -186,8 +193,9 @@ async function criarConta() {
     mostrarAlerta('O nome deve ter pelo menos 2 caracteres.');
     return;
   }
-  if (senha.length < 8) {
-    mostrarAlerta('A senha deve ter pelo menos 8 caracteres.');
+  // Complexidade: mínimo 8 caracteres, ao menos 1 letra e 1 número
+  if (!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(senha)) {
+    mostrarAlerta('Senha deve ter no mínimo 8 caracteres, incluindo letras e números.');
     return;
   }
   if (senha !== confirmarSenha) {
@@ -231,7 +239,13 @@ async function criarConta() {
       body:    JSON.stringify(corpo),
     });
 
-    const data = await res.json();
+    // Protege contra resposta não-JSON (ex.: 502/503 do host devolvendo HTML)
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Servidor indisponível no momento. Tente novamente em instantes.');
+    }
 
     if (!res.ok) {
       // 409 = e-mail já existe, 400 = dados inválidos, 403 = token admin errado

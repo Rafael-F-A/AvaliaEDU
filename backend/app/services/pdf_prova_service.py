@@ -2,6 +2,7 @@ import io
 import json
 import random
 import os
+import logging
 import tempfile
 import urllib.request
 import glob
@@ -37,7 +38,8 @@ LETRAS = ["A", "B", "C", "D", "E", "F"]
 LOGO_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "assets", "logo_seed.png")
 )
-print("LOGO PATH:", LOGO_PATH)
+# Log de diagnóstico do caminho do logo (silencioso em produção).
+logging.debug("LOGO PATH: %s", LOGO_PATH)
 
 NIVEL_LABELS = {
     "FUNDAMENTAL_I":  "Fundamental I",
@@ -296,7 +298,7 @@ def gerar_pdf_prova_aluno(
     arquivos_tmp_imagem = []  # rastrear para limpeza após build
 
     for idx, questao in enumerate(questoes_ordenadas, start=1):
-        print(f"Questão {idx} | id={questao.id} | enunciado={questao.enunciado[:50]}")
+        logging.debug("Questão %s | id=%s | enunciado=%s", idx, questao.id, (questao.enunciado or "")[:50])
 
         story.append(Paragraph(f"Questão {idx}", estilos["numero_questao"]))
 
@@ -337,7 +339,7 @@ def gerar_pdf_prova_aluno(
                 story.append(img_table)
 
             except Exception as img_err:
-                print(f"Erro ao carregar imagem da questão {questao.id}: {img_err}")
+                logging.warning("Erro ao carregar imagem da questão %s: %s", questao.id, img_err)
                 if tmp_img_path and os.path.exists(tmp_img_path):
                     try:
                         os.unlink(tmp_img_path)
@@ -396,7 +398,7 @@ def gerar_pdf_prova_aluno(
                     story.append(KeepTogether([alt_table]))
 
                 except Exception as alt_img_err:
-                    print(f"Erro ao carregar imagem da alternativa {alt.id}: {alt_img_err}")
+                    logging.warning("Erro ao carregar imagem da alternativa %s: %s", alt.id, alt_img_err)
                     # Fallback: exibe como texto simples
                     story.append(Paragraph(
                         f"( {letra} )&nbsp;&nbsp;{alt.texto or '[imagem indisponível]'}",

@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from app.database import get_db
 from app import models, schemas
-from app.dependencies import get_usuario_atual, get_usuario_admin
+from app.dependencies import get_usuario_atual, get_usuario_aluno, get_usuario_admin
 from app.services import reserva_service
 
 router = APIRouter(prefix="/reservas", tags=["Reservas (US27)"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/reservas", tags=["Reservas (US27)"])
 def criar_reserva(
     dados: schemas.ReservaCreate,
     db: Session = Depends(get_db),
-    aluno: models.Usuario = Depends(get_usuario_atual),
+    aluno: models.Usuario = Depends(get_usuario_aluno),
 ):
     """
     Cria uma reserva para o aluno em um local presencial.

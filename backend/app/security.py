@@ -8,6 +8,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    # backend-auth-seg-2: falha clara no startup em vez de quebrar silenciosamente
+    # depois no encode/decode do JWT.
+    raise RuntimeError(
+        "SECRET_KEY não configurada. Defina a variável de ambiente SECRET_KEY "
+        "(no .env local ou no painel do Render) antes de iniciar a API."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
 

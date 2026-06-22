@@ -46,6 +46,7 @@ def listar_provas(
     nivel: Optional[str] = Query(None),
     serie: Optional[str] = Query(None),
     tipo: Optional[str] = Query(None),
+    status: Optional[str] = Query(None, description="Filtra por status (ex.: PUBLICADA)"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -55,7 +56,7 @@ def listar_provas(
     Retorna lista paginada de provas com total, skip e limit.
     Admin vê todas (incluindo rascunhos). Aluno vê apenas publicadas.
     """
-    return prova_service.listar_provas(db, usuario, nivel, serie, tipo, skip, limit)
+    return prova_service.listar_provas(db, usuario, nivel, serie, tipo, skip, limit, status)
 
 
 @router.get("/{prova_id}", response_model=schemas.ProvaResponse)

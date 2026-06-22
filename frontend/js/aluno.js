@@ -200,7 +200,7 @@ async function carregarDashboard() {
     tbody.innerHTML = recentes.length
       ? recentes.map(t => `
           <tr>
-            <td class="td-name">${t.prova_titulo || '—'}</td>
+            <td class="td-name">${_esc(t.prova_titulo) || '—'}</td>
             <td class="td-muted">${formatarData(t.data_inicio || t.data_realizacao)}</td>
             <td>${formatarNota(t.nota)}</td>
             <td>${badgeResultado(t.resultado)}</td>
@@ -338,9 +338,9 @@ function renderTabelaProvas(provas, tentativasMap = {}, inscricoesMap = {}) {
     }
 
     return `
-      <tr data-titulo="${(p.titulo || '').toLowerCase()}" data-tipo="${p.tipo}">
-        <td class="td-name">${p.titulo}</td>
-        <td class="td-muted">${nivelLabel(p.nivel)} ${p.serie ? '— ' + p.serie : ''}</td>
+      <tr data-titulo="${_esc((p.titulo || '').toLowerCase())}" data-tipo="${p.tipo}">
+        <td class="td-name">${_esc(p.titulo)}</td>
+        <td class="td-muted">${nivelLabel(p.nivel)} ${p.serie ? '— ' + _esc(p.serie) : ''}</td>
         <td>${badgeTipoProva(p.tipo)}</td>
         <td class="td-muted">${p.tempo_limite ? p.tempo_limite + ' min' : '—'}</td>
         <td class="td-muted">${prazoCel}</td>
@@ -358,7 +358,7 @@ function renderTabelaHistorico(historico) {
 
   tbody.innerHTML = historico.map(t => `
     <tr>
-      <td class="td-name">${t.prova_titulo || '—'}</td>
+      <td class="td-name">${_esc(t.prova_titulo) || '—'}</td>
       <td>${badgeTipoProva(t.tipo)}</td>
       <td class="td-muted">${formatarData(t.data_inicio || t.data_realizacao)}</td>
       <td><strong>${formatarNota(t.nota)}</strong></td>
@@ -652,8 +652,8 @@ function _renderLocais(lista) {
           </svg>
         </div>
         <div class="local-card-info">
-          <p class="local-card-nome">${local.nome}</p>
-          <p class="local-card-end">${local.endereco}${local.cidade ? ', ' + local.cidade : ''}</p>
+          <p class="local-card-nome">${_esc(local.nome)}</p>
+          <p class="local-card-end">${_esc(local.endereco)}${local.cidade ? ', ' + _esc(local.cidade) : ''}</p>
         </div>
         <div class="local-card-meta">
           <span class="local-dist">${distTxt}</span>
@@ -680,9 +680,9 @@ function selecionarLocal(localId) {
     ? `${local.distancia_km.toFixed(1)} km de distância`
     : '';
   document.getElementById('confirmar-local-info').innerHTML = `
-    <p style="font-weight:600; font-size:15px; color:var(--c-primary); margin:0 0 6px;">${local.nome}</p>
+    <p style="font-weight:600; font-size:15px; color:var(--c-primary); margin:0 0 6px;">${_esc(local.nome)}</p>
     <p style="font-size:13px; color:var(--c-text-muted); margin:0 0 4px;">
-      ${local.endereco}${local.cidade ? ' — ' + local.cidade : ''}
+      ${_esc(local.endereco)}${local.cidade ? ' — ' + _esc(local.cidade) : ''}
     </p>
     ${distTxt ? `<p style="font-size:12px; color:var(--c-text-muted); margin:0;">📍 ${distTxt}</p>` : ''}
     <p style="font-size:12px; color:var(--c-text-muted); margin:4px 0 0;">
@@ -707,6 +707,9 @@ function selecionarLocal(localId) {
 async function confirmarInicioProva() {
   const { provaId, tipo, escolha, localSelecionado } = modalidade;
   const btn = document.getElementById('btn-confirmar-modalidade');
+  // frontend-aluno-3: guarda o rótulo original para destravar o botão no
+  // finally (o fluxo ONLINE antes deixava o botão preso em "Aguarde...").
+  const btnLabelOriginal = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
 
   try {
@@ -754,8 +757,17 @@ async function confirmarInicioProva() {
     }
 
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar e reservar vaga'; }
     showToast(err.message || 'Não foi possível criar a reserva.', 'danger', 6000);
+  } finally {
+    // Destrava o botão sempre (online com sucesso fecha o modal; online com erro
+    // e presencial continuam com o modal aberto e o botão restaurado).
+    if (btn) {
+      btn.disabled = false;
+      // No fluxo PRESENCIAL com sucesso o passo já trocou para "comprovante" e o
+      // botão foi ajustado para "Confirmar e reservar vaga"; nos demais casos
+      // restauramos o rótulo original capturado no início.
+      if (btn.textContent === 'Aguarde...') btn.textContent = btnLabelOriginal;
+    }
   }
 }
 
@@ -890,14 +902,14 @@ function _renderListaReservas(lista) {
         <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="flex:1; min-width:180px;">
             <div style="font-size:15px; font-weight:700; color:var(--c-text); margin-bottom:4px;">
-              ${r.prova_titulo || '—'}
+              ${_esc(r.prova_titulo) || '—'}
             </div>
             <div style="font-size:13px; color:var(--c-text-muted); margin-bottom:6px;">
-              📍 ${r.local?.nome || '—'}
-              ${r.local?.cidade ? ` — ${r.local.cidade}` : ''}
+              📍 ${_esc(r.local?.nome) || '—'}
+              ${r.local?.cidade ? ` — ${_esc(r.local.cidade)}` : ''}
             </div>
             <div style="font-size:12px; color:var(--c-text-muted);">
-              ${r.local?.endereco || ''}
+              ${_esc(r.local?.endereco) || ''}
             </div>
           </div>
 
@@ -914,7 +926,7 @@ function _renderListaReservas(lista) {
         ${r.necessidades_especiais ? `
           <div style="margin-top:10px; font-size:12px; color:var(--c-text-muted);
                background:var(--c-bg); padding:6px 10px; border-radius:6px;">
-            ♿ ${r.necessidades_especiais}
+            ♿ ${_esc(r.necessidades_especiais)}
           </div>` : ''}
 
         ${ativa ? `
@@ -1013,6 +1025,20 @@ function resetarExam() {
    7. RENDERIZAÇÃO DO EXAME
    ─────────────────────────────────────── */
 
+/**
+ * Valida que uma URL é http(s) (evita javascript:, data:, etc.) antes de
+ * usá-la em atributos src. Retorna true só para http:// e https://.
+ */
+function _urlSegura(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const u = new URL(url, window.location.origin);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Renderiza a questão atual (baseado em exam.indiceAtual). */
 function renderQuestaoExam() {
   // interrompe a leitura em voz da questão anterior
@@ -1036,7 +1062,7 @@ function renderQuestaoExam() {
   // Imagem
   const imgWrap = document.getElementById('exam-imagem-wrap');
   const imgEl   = document.getElementById('exam-imagem');
-  if (q.imagem_url) {
+  if (q.imagem_url && _urlSegura(q.imagem_url)) {
     imgEl.src = q.imagem_url;
     imgWrap.style.display = '';
   } else {
@@ -1063,9 +1089,9 @@ function renderQuestaoExam() {
                onclick="selecionarAlternativa(${alt.id}, this)" role="radio"
                aria-checked="${altSalva === alt.id}" tabindex="0">
             <span class="alt-letra">${letras[i] || i + 1}</span>
-            <span class="alt-texto">${alt.texto}</span>
-            ${alt.imagem_url
-              ? `<img src="${alt.imagem_url}" alt="Imagem da alternativa"
+            <span class="alt-texto">${_esc(alt.texto)}</span>
+            ${alt.imagem_url && _urlSegura(alt.imagem_url)
+              ? `<img src="${_esc(alt.imagem_url)}" alt="Imagem da alternativa"
                   style="max-width:200px;margin-top:8px;border-radius:6px;">`
               : ''}
             ${Narrador.suportado()
@@ -1374,6 +1400,7 @@ async function carregarResultado() {
     const aprovado = res.status === 'APROVADO';
 
     document.getElementById('res-nota').textContent       = formatarNota(nota);
+    // res-prova-nome usa textContent — já é seguro, sem necessidade de _esc.
     document.getElementById('res-prova-nome').textContent = res.prova_titulo || 'Prova';
     document.getElementById('res-percentual').textContent = `${pct}%`;
     document.getElementById('res-acertos-label').textContent = `${acertos} de ${total} acertos`;
@@ -1386,15 +1413,35 @@ async function carregarResultado() {
     badge.textContent  = aprovado ? 'Aprovado' : 'Reprovado';
     badge.className    = `badge ${aprovado ? 'badge-aprovado' : 'badge-reprovado'}`;
 
-    // Gabarito
+    // Gabarito / revisão (LOGICA-11 / frontend-aluno-6)
+    // SIMULADO detalha escolhida x correta; CERTIFICAÇÃO não traz "respostas"
+    // (o backend omite o gabarito), caindo no "Gabarito não disponível".
     const tbody = document.getElementById('res-gabarito-tbody');
+    const ehSimulado = exam.tipo === 'SIMULADO';
     if (res.respostas && res.respostas.length) {
       tbody.innerHTML = res.respostas.map((r, i) => {
-        const ok = r.correta;
+        const ok = r.acertou;
+        // No SIMULADO mostramos a alternativa escolhida e a correta abaixo do
+        // enunciado; tudo escapado com _esc (enunciado/alternativas digitados
+        // por professores). data: e < > não devem injetar HTML.
+        const revisao = ehSimulado
+          ? `<div style="margin-top:6px; font-size:12px; line-height:1.5;">
+               <div style="color:var(--c-text-muted);">
+                 Sua resposta:
+                 <strong style="color:${ok ? 'var(--c-success)' : 'var(--c-danger)'};">
+                   ${_esc(r.alternativa_escolhida) || '— (sem resposta)'}
+                 </strong>
+               </div>
+               ${!ok ? `<div style="color:var(--c-text-muted);">
+                 Correta: <strong style="color:var(--c-success);">${_esc(r.alternativa_correta) || '—'}</strong>
+               </div>` : ''}
+             </div>`
+          : '';
         return `<tr>
           <td>${i + 1}</td>
           <td class="td-muted" style="max-width:300px; white-space:normal;">
-            ${r.enunciado || r.questao_id || '—'}
+            ${_esc(r.enunciado) || _esc(r.questao_id) || '—'}
+            ${revisao}
           </td>
           <td>
             <span class="badge ${ok ? 'badge-aprovado' : 'badge-reprovado'}">
@@ -1419,7 +1466,21 @@ async function carregarResultado() {
     }
 
   } catch (err) {
-    showToast(err.message || 'Erro ao carregar resultado.', 'danger');
+    // frontend-aluno-7: não existe endpoint dedicado de "finalizar" — a
+    // finalização ocorre ao responder a última questão (ou por tempo). Se o
+    // aluno acionou /resultado antes de a tentativa estar concluída, o backend
+    // responde 400 com "ainda não finalizado". Tratamos de forma graciosa, sem
+    // quebrar: continuamos na prova e orientamos o aluno.
+    const msg = err.message || '';
+    if (/ainda não finalizad/i.test(msg)) {
+      showToast(
+        'Ainda há questões a responder. Responda todas as questões (ou aguarde o término do tempo) para ver o resultado.',
+        'warning',
+        6000
+      );
+    } else {
+      showToast(msg || 'Erro ao carregar resultado.', 'danger');
+    }
   } finally {
     setLoading(false);
   }

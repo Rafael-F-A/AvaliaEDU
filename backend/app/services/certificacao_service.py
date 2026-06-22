@@ -128,18 +128,28 @@ def gerar_certificado(tentativa_id: int, aluno: models.Usuario, db: Session, ip:
 
     try:
         codigo = gerar_codigo_unico(db)
-        # URL do PDF – pode ser assinada depois; por enquanto, placeholder
-        url_pdf = f"/certificados/{codigo}.pdf"
         certificado = models.Certificado(
             tentativa_id=tentativa.id,
             aluno_id=aluno.id,
             prova_id=tentativa.prova_id,
             codigo_validacao=codigo,
-            url_pdf=url_pdf
+            url_pdf=None
         )
         db.add(certificado)
         db.commit()
         registrar_acao(db, aluno.id, "GERAR_CERTIFICADO", "certificado", certificado.id, ip, user_agent)
+
+        # Gera o PDF e faz upload para o Storage, gravando a URL real (backend-cert-geo-pdf-5)
+        try:
+            from app.services.pdf_certificado_service import salvar_e_fazer_upload
+            certificado.url_pdf = salvar_e_fazer_upload(certificado)
+            db.commit()
+        except Exception:
+            # Se o upload sincrono falhar, NAO gravamos URL enganosa:
+            # o download permanece disponivel via POST /pdf/certificados/{tentativa_id}
+            db.rollback()
+            certificado.url_pdf = None
+            db.commit()
 
         return {
             "id": certificado.id,

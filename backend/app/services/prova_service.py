@@ -37,6 +37,7 @@ def listar_provas(
     tipo: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
+    status: Optional[str] = None,
 ) -> dict:
     
     query = db.query(models.Prova).filter(models.Prova.deleted == False)
@@ -52,6 +53,10 @@ def listar_provas(
         query = query.filter(models.Prova.serie == serie)
     if tipo:
         query = query.filter(models.Prova.tipo == tipo)
+    # integration-contract-1: filtro opcional por status (o front envia
+    # ?status=PUBLICADA). Para não-admin o status já é forçado a PUBLICADA acima.
+    if status:
+        query = query.filter(models.Prova.status == status)
 
     total = query.count()
     provas = (
