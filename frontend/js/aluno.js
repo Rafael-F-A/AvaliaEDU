@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!usuario) return;
 
   initUI(usuario);
+  // Preenche avatar + dados pessoais já na carga inicial (estão no localStorage),
+  // sem esperar abrir a "Minha área" nem uma chamada de API.
+  preencherIdentidade(usuario);
   configurarNavegacao();
   configurarFiltros();
   carregarDashboard();
@@ -158,6 +161,33 @@ function configurarNavegacao() {
 /* ─────────────────────────────────────────
    4. DASHBOARD
    ─────────────────────────────────────── */
+
+/**
+ * Preenche a identidade do usuário (iniciais no avatar + dados pessoais)
+ * imediatamente a partir do objeto já salvo no localStorage — assim o avatar
+ * aparece em TODAS as seções e a "Minha área" já mostra nome/e-mail/nível antes
+ * mesmo de ser aberta. carregarMinhaArea() depois atualiza totais/histórico.
+ */
+function preencherIdentidade(u) {
+  if (!u) return;
+  const ini = iniciais(u.nome);
+  // Avatares de todas as seções (vários sem id) — preenche por classe.
+  document.querySelectorAll('.user-avatar').forEach(el => { el.textContent = ini; });
+
+  const nomeEl = document.getElementById('area-nome');
+  if (nomeEl) nomeEl.textContent = u.nome || '—';
+  const nsEl = document.getElementById('area-nivel-serie');
+  if (nsEl) nsEl.textContent = [nivelLabel(u.nivel), u.serie].filter(Boolean).join(' — ') || '—';
+  const emailEl = document.getElementById('area-email');
+  if (emailEl) emailEl.value = u.email || '';
+  const ndEl = document.getElementById('area-nivel-display');
+  if (ndEl) ndEl.value = nivelLabel(u.nivel) || '—';
+  const sdEl = document.getElementById('area-serie-display');
+  if (sdEl) sdEl.value = u.serie || '—';
+  if (typeof _renderStatusLocalizacao === 'function') {
+    _renderStatusLocalizacao(u.latitude, u.longitude);
+  }
+}
 
 async function carregarDashboard() {
   try {
