@@ -400,7 +400,7 @@ function _renderComponentesChecklist(componentesVinculados = []) {
     rank(a.nivel) - rank(b.nivel) || (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
 
   let html = '';
-  let nivelAtual = ' ';
+  let nivelAtual = '__inicio__';
   ordenados.forEach(c => {
     if (c.nivel !== nivelAtual) {
       nivelAtual = c.nivel;

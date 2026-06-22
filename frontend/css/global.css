@@ -244,6 +244,24 @@ img { max-width: 100%; display: block; }
   color: #FCA5A5;
 }
 
+/* Link "Como usar" (guia de uso) no rodapé do sidebar */
+.sidebar-ajuda {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  color: var(--c-sidebar-muted);
+  font-size: var(--fs-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-radius: var(--radius-md);
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-ajuda:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--c-sidebar-text);
+}
+
 /* ─────────────────────────────────────────
    5. TOPBAR / CABEÇALHO DE PÁGINA
    ─────────────────────────────────────── */
@@ -1053,6 +1071,9 @@ tbody td {
 
   .btn-logout { padding: var(--sp-2); font-size: 0; }
   .btn-logout::before { content: '→'; font-size: 16px; }
+
+  .sidebar-ajuda { padding: var(--sp-2); font-size: 0; }
+  .sidebar-ajuda::before { content: '❓'; font-size: 15px; }
 
   .page-header { padding: var(--sp-4) var(--sp-5); }
   .page-content { padding: var(--sp-5); }
