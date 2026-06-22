@@ -19,6 +19,10 @@
   const TOKEN_KEY   = 'avaliaedu_token';
   const USUARIO_KEY = 'avaliaedu_usuario';
 
+  // Link de validação do certificado (?codigo=) tem prioridade: o visitante
+  // quer verificar a autenticidade aqui, mesmo que esteja logado — não redireciona.
+  if (new URLSearchParams(location.search).has('codigo')) return;
+
   const token = localStorage.getItem(TOKEN_KEY);
   const raw   = localStorage.getItem(USUARIO_KEY);
 
@@ -136,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
      global.js, carregado só nos dashboards).
      ─────────────────────────────────────── */
 
-  const API_BASE_VALIDACAO = 'http://localhost:8000';
+  const API_BASE_VALIDACAO = (['localhost', '127.0.0.1'].includes(location.hostname)) ? 'http://localhost:8000' : 'https://avaliaedu-api.onrender.com';
 
   function _escHtmlValidacao(str) {
     const div = document.createElement('div');
@@ -223,6 +227,20 @@ document.addEventListener('DOMContentLoaded', () => {
         btnValidar.textContent = 'Validar';
       }
     });
+
+    // Deep-link do certificado: ?codigo=XXX (QR/link do PDF) → preenche o campo,
+    // rola até a seção de validação e dispara a verificação automaticamente.
+    const codigoUrl = new URLSearchParams(location.search).get('codigo');
+    if (codigoUrl) {
+      inputCodigo.value = codigoUrl.trim();
+      const secValidar = document.getElementById('validar');
+      if (secValidar) secValidar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (typeof formValidar.requestSubmit === 'function') {
+        formValidar.requestSubmit();
+      } else {
+        formValidar.dispatchEvent(new Event('submit', { cancelable: true }));
+      }
+    }
   }
 
 });

@@ -318,6 +318,41 @@ class QuestaoAtualResponse(BaseModel):
     total_questoes: int
     tempo_restante_segundos: Optional[float] = None
 
+
+class QuestaoExamItem(BaseModel):
+    questao_id: int
+    enunciado: str
+    numero: int
+    imagem_url: Optional[str] = None
+    alternativas: list[AlternativaPublica]
+
+    @field_serializer('imagem_url')
+    def _ser_q_img(self, v, _info):
+        return _imagem_url_fresca(v)
+
+    class Config:
+        from_attributes = True
+
+
+class QuestoesExamResponse(BaseModel):
+    """Todas as questões da tentativa (ordem persistida) + respostas já dadas.
+    Permite ao front carregar a prova inteira e navegar/pular livremente."""
+    tentativa_id: int
+    tipo: str
+    total_questoes: int
+    tempo_restante_segundos: Optional[float] = None
+    modalidade: Optional[str] = None
+    questoes: list[QuestaoExamItem]
+    respostas: dict  # { "<questao_id>": alternativa_id }
+
+
+class FinalizarSimuladoResponse(BaseModel):
+    finalizado: bool
+    nota: float
+    resultado: str
+    total_questoes: int
+    total_respondidas: int
+
 # Geolocalização / Locais
 
 class LocalBase(BaseModel):
@@ -539,6 +574,9 @@ class ReservaAlunoInfo(BaseModel):
 
 class ReservaAdminResponse(BaseModel):
     id: int
+    aluno_id: Optional[int] = None
+    prova_id: Optional[int] = None
+    local_id: Optional[int] = None
     status: str
     data_reserva: datetime
     data_expiracao: Optional[datetime] = None
@@ -549,6 +587,43 @@ class ReservaAdminResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReservaAdminCreate(BaseModel):
+    """[ADMIN] Cria uma reserva em nome de um aluno."""
+    aluno_id: int
+    prova_id: int
+    local_id: int
+    data_reserva: Optional[datetime] = None
+    data_expiracao: Optional[datetime] = None
+    status: Optional[str] = "ATIVA"
+    necessidades_especiais: Optional[str] = None
+    forcar: bool = Field(
+        False,
+        description=(
+            "Ignora o limite de vagas do local e permite usar prova não "
+            "publicada. A regra de 1 reserva ATIVA por prova é sempre aplicada "
+            "(garantida pelo banco) e NÃO é burlada por este campo."
+        ),
+    )
+
+
+class ReservaAdminUpdate(BaseModel):
+    """[ADMIN] Edita uma reserva. Campos omitidos não são alterados."""
+    prova_id: Optional[int] = None
+    local_id: Optional[int] = None
+    data_reserva: Optional[datetime] = None
+    data_expiracao: Optional[datetime] = None
+    status: Optional[str] = None
+    necessidades_especiais: Optional[str] = None
+    forcar: bool = Field(
+        False,
+        description=(
+            "Ignora o limite de vagas do local e permite usar prova não "
+            "publicada. A regra de 1 reserva ATIVA por prova é sempre aplicada "
+            "(garantida pelo banco) e NÃO é burlada por este campo."
+        ),
+    )
 
 # =============================================================================
 # US44 — Inscrições em provas

@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from app import models
@@ -19,6 +19,11 @@ def obter_tentativas_filtradas(
 
     query = (
         db.query(models.Tentativa)
+        # Carrega aluno e prova junto (joinedload) para evitar N+1 nas agregações
+        .options(
+            joinedload(models.Tentativa.aluno),
+            joinedload(models.Tentativa.prova),
+        )
         .join(models.Usuario, models.Tentativa.aluno_id == models.Usuario.id)
         .join(models.Prova, models.Tentativa.prova_id == models.Prova.id)
         .filter(models.Tentativa.status == "CONCLUIDA")
@@ -181,7 +186,7 @@ def calcular_detalhes_provas(
             "acertos_totais": acertos,
             "erros_totais": len(respostas) - acertos,
             "taxa_aprovacao_percentual": round(aprovados / len(grupo) * 100, 2),
-            "nota_minima": float(prova.nota_minima),
+            "nota_minima": float(prova.nota_minima or 0),
         })
 
     return sorted(resultado, key=lambda x: x["media_notas"], reverse=True)

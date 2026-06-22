@@ -1,219 +1,207 @@
-# Squad 32 – Sistema de Gestão de Provas SEED
+# AvaliaEDU — Squad 32 · Sistema de Gestão de Provas (SEED)
 
 <p align="center">
-  API para gerenciamento de provas, questões, simulados e certificações.<br>
-  Projeto desenvolvido durante a <strong>Residência em Software</strong>.
+  Plataforma web para criação, aplicação e correção de provas, simulados e
+  certificações, com geolocalização de locais de prova e certificados digitais
+  validáveis.<br>
+  Projeto desenvolvido durante a <strong>Residência em Software</strong> —
+  Secretaria de Estado da Educação de Sergipe (SEED).
 </p>
 
 ---
 
-## 📚 Sobre o Projeto
+## 🌐 Versão online (MVP publicado)
 
-O **Squad 32 – Sistema de Gestão de Provas SEED** é uma API desenvolvida com foco na administração de avaliações educacionais, permitindo o gerenciamento de:
+| Camada | URL |
+|---|---|
+| Aplicação (frontend) | https://frontend-ten-beryl-38.vercel.app |
+| API (backend) | https://avaliaedu-api.onrender.com |
+| Documentação da API (Swagger) | https://avaliaedu-api.onrender.com/docs |
 
-- 📄 Provas
-- ❓ Questões
-- 📝 Simulados
-- 🏆 Certificações
-- 👥 Usuários e autenticação
-
-A aplicação foi construída seguindo uma arquitetura moderna baseada em APIs REST, utilizando autenticação JWT e integração com PostgreSQL/PostGIS.
-
----
-
-## 🚀 Tecnologias Utilizadas
-
-### 🔧 Back-end
-- Python
-- FastAPI
-- SQLAlchemy
-- JWT Authentication
-
-### 🗄️ Banco de Dados
-- PostgreSQL
-- PostGIS
-
-### 🎨 Front-end
-- HTML
-- CSS
-- JavaScript
+> O backend roda no plano gratuito do Render; após ~15 min sem uso, a **primeira
+> requisição pode levar ~50s** (cold start). Depois disso responde normalmente.
 
 ---
 
-#️⃣ Estrutura do Projeto
+## 📚 Sobre o projeto
 
-```bash
-squad32-seed/
-│
+Sistema construído em arquitetura REST (FastAPI) com autenticação JWT e três
+perfis de usuário (Aluno, Professor/Admin). Principais módulos:
+
+- 📄 **Provas** — criação, edição, publicação, exportação em PDF
+- ❓ **Questões** — manuais e **geração automática** a partir de modelos com
+  variáveis (questões únicas por aluno — antifraude)
+- 📝 **Simulados** e 🏆 **Certificações** (com regras distintas de tempo, nota e bloqueio)
+- 🗺️ **Locais de prova** com recomendação por **geolocalização** (PostGIS)
+- 🪪 **Certificados** em PDF (brasão + QR code) com **validação pública** por código
+- 👥 **Usuários**, autenticação e relatórios
+
+---
+
+## 🚀 Tecnologias
+
+**Back-end:** Python · FastAPI · SQLAlchemy · JWT (python-jose) · passlib/bcrypt ·
+slowapi (rate limit) · ReportLab + qrcode (PDFs) · openpyxl (relatórios)
+**Banco:** PostgreSQL + PostGIS (via SQLAlchemy + GeoAlchemy2)
+**Storage:** Supabase Storage (certificados, provas e imagens de questões)
+**Front-end:** HTML5 · CSS3 · JavaScript (vanilla, sem build)
+**Deploy:** Render (backend) · Vercel (frontend) · Supabase (banco + storage)
+
+---
+
+## 🗂️ Estrutura do projeto
+
+```
+.
 ├── backend/
 │   ├── app/
+│   │   ├── main.py            # app FastAPI + middlewares (CORS, rate limit)
+│   │   ├── database.py        # engine/sessão SQLAlchemy
+│   │   ├── models.py          # modelos ORM
+│   │   ├── schemas.py         # schemas Pydantic
+│   │   ├── security.py        # hash de senha + criação de JWT
+│   │   ├── dependencies.py    # auth (get_usuario_atual / admin / aluno)
+│   │   ├── enums.py
+│   │   ├── routers/           # auth, provas, questoes, geracao, simulados,
+│   │   │                      # certificacoes, pdf, geolocalizacao, usuarios,
+│   │   │                      # reservas, componentes, inscricoes, relatorios
+│   │   ├── services/          # regras de negócio (1 por domínio)
+│   │   └── utils/storage.py   # integração com Supabase Storage
 │   ├── requirements.txt
-│   └── .env
-│
+│   ├── Procfile               # comando de start (deploy)
+│   └── .python-version        # 3.12
 ├── frontend/
-│   └── index.html
-│
+│   ├── index.html             # landing + validação pública de certificado
+│   ├── auth.html              # login e cadastro
+│   ├── dashboard-admin.html   # painel do professor/admin
+│   ├── dashboard-aluno.html   # painel do aluno
+│   ├── css/                   # global, admin, aluno, auth, landing-page
+│   ├── js/                    # global, admin, aluno, auth, landing-page
+│   └── favicon.svg · og-image.svg/png
 ├── database/
-│   └── migrations/
-│       ├── 010_usuarios.sql
-│       ├── 020_provas.sql
-│       ├── 030_questoes.sql
-│       └── 040_alternativas.sql
-│
+│   └── migrations/            # scripts SQL numerados (010 … 150)
+├── render.yaml                # blueprint de deploy (Render)
 └── README.md
 ```
 
 ---
 
-## 🛢️ Banco de Dados
+## ⚙️ Pré-requisitos
 
-### ✅ Pré-requisitos
-
-Antes de iniciar, certifique-se de possuir:
-
-- PostgreSQL 15+
-- Extensão PostGIS instalada
+- **Python 3.12** (3.13/3.14 podem quebrar wheels de `psycopg2`/`pillow`)
+- **PostgreSQL 15+ com PostGIS** — ou um projeto **Supabase** (que já traz PostGIS)
+- Um projeto **Supabase** para o Storage (buckets `certificados`, `provas`, `questoes`)
 
 ---
 
-## 🏗️ Criando o Banco
+## 🔑 Variáveis de ambiente
 
-```bash
-psql -U postgres -c "CREATE DATABASE squad32_seed;"
-```
-
----
-
-## 📂 Executando as Migrações
-
-Os scripts SQL estão localizados em:
-
-```bash
-database/migrations/
-```
-
-Execute os arquivos na ordem numérica:
-
-```bash
-psql -U postgres -d squad32_seed -f database/migrations/010_usuarios.sql
-
-psql -U postgres -d squad32_seed -f database/migrations/020_provas.sql
-
-psql -U postgres -d squad32_seed -f database/migrations/030_questoes.sql
-
-psql -U postgres -d squad32_seed -f database/migrations/040_alternativas.sql
-```
-
----
-
-## ⚙️ Configuração do Ambiente
-
-Crie um arquivo `.env` dentro da pasta `backend/`:
+Crie um arquivo `backend/.env` (não versionado):
 
 ```env
-DATABASE_URL=postgresql://postgres:senha@localhost:5432/squad32_seed
-SECRET_KEY=37592
+# Banco PostgreSQL/PostGIS (ex.: connection string do Supabase — session pooler, porta 5432)
+DATABASE_URL=postgresql://USUARIO:SENHA@HOST:5432/postgres
+
+# Supabase Storage
+SUPABASE_URL=https://<seu-projeto>.supabase.co
+SUPABASE_SERVICE_KEY=<service_role key do painel Supabase>
+
+# Autenticação
+SECRET_KEY=<string aleatória forte>
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
+ADMIN_SECRET_KEY=<token exigido para registrar um ADMIN>
+
+# Outros
+BASE_URL=http://localhost:8000
+ALLOWED_ORIGINS=*
 ```
 
 ---
 
-## ▶️ Execução do Projeto
+## 🗄️ Banco de dados
 
-### 🔹 Back-end
+Os scripts ficam em `database/migrations/` e devem ser executados **em ordem
+numérica crescente** (`010_…` até `150_…`). Em um Postgres local:
+
+```bash
+psql -U postgres -c "CREATE DATABASE avaliaedu;"
+psql -U postgres -d avaliaedu -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+# execute todos os arquivos de database/migrations/ em ordem:
+for f in database/migrations/*.sql; do psql -U postgres -d avaliaedu -f "$f"; done
+```
+
+> Em um projeto Supabase, rode os mesmos scripts pelo SQL Editor (PostGIS já vem disponível).
+
+---
+
+## ▶️ Executando localmente
+
+### Back-end
 
 ```bash
 cd backend
-
 python -m venv venv
-```
-
-#### Ativando ambiente virtual
-
-##### Linux / MacOS
-
-```bash
-source venv/bin/activate
-```
-
-##### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-#### Instalando dependências
-
-```bash
+# Windows:  venv\Scripts\activate
+# Linux/Mac: source venv/bin/activate
 pip install -r requirements.txt
-```
-
-#### Executando servidor
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-A API estará disponível em:
+API em `http://localhost:8000` · Swagger em `http://localhost:8000/docs` · ReDoc em `/redoc`.
+
+### Front-end
+
+É estático e **detecta o ambiente automaticamente** (`localhost` → API local;
+caso contrário → API de produção). Sirva a pasta `frontend/` por HTTP:
 
 ```bash
-http://localhost:8000
+cd frontend
+python -m http.server 5500
+# abra http://localhost:5500
 ```
 
 ---
 
-### 🔹 Front-end
+## ☁️ Deploy
 
-Abra o arquivo abaixo diretamente no navegador:
-
-```bash
-frontend/index.html
-```
+- **Backend (Render):** importe o repositório em *New → Blueprint*; o `render.yaml`
+  configura o serviço. Preencha no painel os segredos (`DATABASE_URL`,
+  `SUPABASE_SERVICE_KEY`, `SECRET_KEY`, `ADMIN_SECRET_KEY`, `BASE_URL`).
+- **Frontend (Vercel):** publique a pasta `frontend/` (`vercel --prod`). O `API_BASE`
+  já aponta para o backend de produção fora de `localhost`.
+- **Banco/Storage:** Supabase (PostgreSQL + PostGIS + buckets de Storage).
 
 ---
 
 ## 🔐 Autenticação
 
-O sistema utiliza autenticação baseada em **JWT (JSON Web Token)** para proteção das rotas privadas.
+JWT (Bearer). O cadastro de **ADMIN** exige o campo `admin_token` igual ao
+`ADMIN_SECRET_KEY` do ambiente. Rotas privadas exigem o header
+`Authorization: Bearer <token>`.
 
 ---
 
-## 🧪 Documentação da API
-
-Após iniciar o servidor, a documentação automática estará disponível em:
-
-### Swagger UI
-
-```bash
-http://localhost:8000/docs
-```
-
-### ReDoc
-
-```bash
-http://localhost:8000/redoc
-```
-
----
-
-## ⚠️ Problemas Comuns
+## ⚠️ Problemas comuns
 
 | Problema | Solução |
 |---|---|
-| `psql: command not found` | Adicione o PostgreSQL ao PATH do sistema |
-| `password authentication failed` | Verifique usuário e senha no `.env` |
-| `ModuleNotFoundError` | Ative o ambiente virtual antes de executar |
-| `connection refused` | Verifique se o PostgreSQL está em execução |
+| `ModuleNotFoundError` | Ative o venv e rode `pip install -r requirements.txt` |
+| `password authentication failed` | Confira `DATABASE_URL` no `.env` |
+| `connection refused` | Verifique se o PostgreSQL/Supabase está acessível |
+| Front não fala com a API | Confira `ALLOWED_ORIGINS` no backend e a URL em `API_BASE` |
+| 1ª requisição lenta em produção | Cold start do Render (plano free) — normal |
 
 ---
 
-## 👨‍💻 Equipe
+## 👨‍💻 Equipe — Squad 32
 
-Projeto desenvolvido pela equipe **Squad 32** durante a Residência em Software.
+Arthur de Oliveira Brito · Damily dos Santos Lima · Fabio Campos Chagas ·
+Henrique Peixoto Oliveira · João Pedro Alves Seixas · Juscelino Santos de Andrade ·
+Marconi Vianna Silveira · Rafael Florencio de Azevedo
 
 ---
 
 ## 📄 Licença
 
-Este projeto foi desenvolvido para fins acadêmicos e educacionais.
+Projeto desenvolvido para fins acadêmicos e educacionais.

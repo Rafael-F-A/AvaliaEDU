@@ -15,7 +15,7 @@ from app.routers.relatorios import router as relatorios_router
  
 load_dotenv()
  
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+from app.rate_limit import limiter  # limiter compartilhado (mesma instância usada nos routers)
 app = FastAPI(
     title="Sistema de Gestão de Provas - SEED",
     description="API para gerenciar provas, questões, simulados e certificações",
@@ -24,12 +24,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
  
-ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",")]
+# CORS: origens explícitas. "*" + credentials é inválido/inseguro (rejeitado
+# pelos navegadores) — se "*" estiver na lista, desligamos as credenciais.
+# Em produção, ALLOWED_ORIGINS é definido no Render (ver render.yaml).
+_origens_default = "https://frontend-ten-beryl-38.vercel.app,http://localhost:5500,http://127.0.0.1:5500"
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", _origens_default).split(",") if o.strip()]
+_permite_credenciais = "*" not in ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=_permite_credenciais,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,22 +63,5 @@ def health_check():
     return {"status": "ok"}
  
  
-@app.get("/admin/usuarios", tags=["Admin"], dependencies=[Depends(get_usuario_admin)])
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(models.Usuario).all()
-    return {
-        "total": len(usuarios),
-        "usuarios": [
-            {
-                "id": u.id,
-                "nome": u.nome,
-                "email": u.email,
-                "perfil": u.perfil,
-                "status": u.status,
-                "nivel": u.nivel,
-                "serie": u.serie,
-                "created_at": u.created_at,
-            }
-            for u in usuarios
-        ],
-    }
+# Endpoint /admin/usuarios removido (backend-auth-seg-7): duplicava GET /usuarios/
+# e expunha e-mails sem paginação. Use GET /usuarios/ (já protegido por admin).

@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from app.database import get_db
 from app import models, schemas
-from app.dependencies import get_usuario_atual, get_usuario_admin
+from app.dependencies import get_usuario_atual, get_usuario_aluno, get_usuario_admin
 from app.services import reserva_service
 
 router = APIRouter(prefix="/reservas", tags=["Reservas (US27)"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/reservas", tags=["Reservas (US27)"])
 def criar_reserva(
     dados: schemas.ReservaCreate,
     db: Session = Depends(get_db),
-    aluno: models.Usuario = Depends(get_usuario_atual),
+    aluno: models.Usuario = Depends(get_usuario_aluno),
 ):
     """
     Cria uma reserva para o aluno em um local presencial.
@@ -86,9 +86,50 @@ def listar_todas_reservas(
     prova_id: Optional[int] = Query(None),
     local_id: Optional[int] = Query(None),
     status_filtro: Optional[str] = Query(
-        None, alias="status", description="ATIVA | UTILIZADA | CANCELADA | EXPIRADA"
+        None, alias="status", description="ATIVA | CONFIRMADA | CANCELADA | EXPIRADA"
     ),
     db: Session = Depends(get_db),
     admin: models.Usuario = Depends(get_usuario_admin),
 ):
     return reserva_service.listar_todas_admin(db, prova_id, local_id, status_filtro)
+
+
+@router.post(
+    "/admin",
+    response_model=schemas.ReservaAdminResponse,
+    status_code=201,
+    summary="[ADMIN] Cria uma reserva em nome de um aluno",
+)
+def criar_reserva_admin(
+    dados: schemas.ReservaAdminCreate,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    return reserva_service.criar_reserva_admin(dados, db)
+
+
+@router.patch(
+    "/admin/{reserva_id}",
+    response_model=schemas.ReservaAdminResponse,
+    summary="[ADMIN] Edita uma reserva (datas, status, local, prova, necessidades)",
+)
+def editar_reserva_admin(
+    reserva_id: int,
+    dados: schemas.ReservaAdminUpdate,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    return reserva_service.editar_reserva_admin(reserva_id, dados, db)
+
+
+@router.delete(
+    "/admin/{reserva_id}",
+    response_model=schemas.MensagemResponse,
+    summary="[ADMIN] Cancela qualquer reserva e devolve a vaga",
+)
+def cancelar_reserva_admin(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    return reserva_service.cancelar_reserva_admin(reserva_id, db)

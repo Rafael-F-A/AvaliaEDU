@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AvaliaEDU — plataforma da SEED/Sergipe para provas, simulados online e certificados digitais com validação pública.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AvaliaEDU — SEED Sergipe">
+  <meta property="og:description" content="Provas, simulados e certificados digitais online da Secretaria de Estado da Educação de Sergipe.">
+  <meta property="og:image" content="https://frontend-ten-beryl-38.vercel.app/og-image.png">
+  <meta property="og:url" content="https://frontend-ten-beryl-38.vercel.app/">
   <title>SEED — AvaliaEDU</title>
   <link rel="stylesheet" href="css/landing-page.css">
 </head>
@@ -11,18 +18,17 @@
 
   <header id="header">
     <div class="logo">
-      <h1>
-        <span class="blue">S-</span>
-        <span class="green">E-</span>
-        <span class="yellow">E-</span>
-        <span class="blue2">D</span>
+      <h1 aria-label="AvaliaEDU — SEED Sergipe">
+        <span class="blue" aria-hidden="true">S-</span>
+        <span class="green" aria-hidden="true">E-</span>
+        <span class="yellow" aria-hidden="true">E-</span>
+        <span class="blue2" aria-hidden="true">D</span>
       </h1>
     </div>
 
     <nav>
       <a href="#inicio">Início</a>
-      <a href="#recursos">Provas</a>
-      <a href="#recursos">Resultados</a>
+      <a href="#recursos">Recursos</a>
       <a href="#validar">Validar certificado</a>
       <a href="auth.html">Login</a>
     </nav>
@@ -32,6 +38,7 @@
 
     <section class="hero" id="inicio">
       <div class="overlay">
+        <h2>AvaliaEDU</h2>
         <p>
           Plataforma desenvolvida para automatizar provas, informar
           resultados e certificados escolares.
@@ -71,6 +78,7 @@
         <p>Digite o código de validação impresso no certificado para confirmar sua autenticidade.</p>
 
         <form id="form-validar-certificado" class="validar-form" autocomplete="off">
+          <label for="input-codigo-certificado" class="sr-only">Código de validação do certificado</label>
           <input
             type="text"
             id="input-codigo-certificado"

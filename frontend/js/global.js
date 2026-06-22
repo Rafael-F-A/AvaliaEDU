@@ -9,7 +9,7 @@
    ─────────────────────────────────────── */
 
 /** URL base da API. Altere para a URL de produção quando publicar. */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (['localhost', '127.0.0.1'].includes(location.hostname)) ? 'http://localhost:8000' : 'https://avaliaedu-api.onrender.com';
 
 /** Chave usada no localStorage para o token JWT */
 const TOKEN_KEY   = 'avaliaedu_token';
@@ -52,6 +52,31 @@ function limparSessao() {
 }
 
 /**
+ * Verifica se o JWT armazenado já expirou, decodificando o campo `exp`
+ * do payload (base64url) — sem depender só do 401 reativo do servidor.
+ * Totalmente defensivo: se o token não puder ser lido, NÃO trata como
+ * expirado (deixa o backend decidir via 401).
+ * @returns {boolean} true se houver token e ele estiver comprovadamente expirado.
+ */
+function tokenExpirado() {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return false;
+    // base64url → base64 e decodifica
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const dados = JSON.parse(atob(base64));
+    if (!dados || typeof dados.exp !== 'number') return false;
+    // exp é em segundos (epoch); Date.now() em ms
+    return dados.exp * 1000 <= Date.now();
+  } catch {
+    // Token ilegível: não inferimos expiração — o 401 cuida disso.
+    return false;
+  }
+}
+
+/**
  * Faz logout: limpa sessão e redireciona para a raiz.
  * Chamado pelo botão "Sair" da sidebar.
  */
@@ -83,6 +108,14 @@ function requireAuth(perfilEsperado = null) {
   const usuario = getUsuario();
 
   if (!token || !usuario) {
+    window.location.href = '/';
+    return null;
+  }
+
+  // Detecção proativa de expiração: se o JWT já venceu, desloga antes
+  // mesmo de qualquer chamada à API (não espera o 401 reativo).
+  if (tokenExpirado()) {
+    limparSessao();
     window.location.href = '/';
     return null;
   }
@@ -133,10 +166,28 @@ async function apiFetch(endpoint, options = {}) {
     delete headers['Content-Type'];
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  // Timeout: o free-tier (Render) pode demorar no cold start, mas a UI não pode
+  // pendurar pra sempre. Aborta após `options.timeout` (padrão 60s) e devolve um
+  // erro legível — o catch de quem chamou reseta o botão e mostra o toast.
+  const _timeoutMs = options.timeout || 60000;
+  const _controller = new AbortController();
+  const _timer = setTimeout(() => _controller.abort(), _timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: _controller.signal,
+    });
+  } catch (erroRede) {
+    clearTimeout(_timer);
+    if (erroRede && erroRede.name === 'AbortError') {
+      throw new Error('O servidor demorou demais para responder (pode estar reiniciando). Aguarde alguns segundos e tente novamente.');
+    }
+    throw new Error('Falha de conexão com o servidor. Verifique sua internet e tente novamente.');
+  }
+  clearTimeout(_timer);
 
   // Token expirado ou inválido → desloga
   if (response.status === 401) {
@@ -229,10 +280,19 @@ function showToast(mensagem, tipo = 'info', duracao = 3500) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${tipo}`;
-  toast.innerHTML = `
-    <span class="toast-icon">${icones[tipo] || 'ℹ'}</span>
-    <span class="toast-msg">${mensagem}</span>
-  `;
+
+  // Ícone é markup fixo (seguro); a mensagem vai via textContent para
+  // evitar XSS refletido caso o texto contenha HTML vindo de erro/API.
+  const elIcone = document.createElement('span');
+  elIcone.className = 'toast-icon';
+  elIcone.textContent = icones[tipo] || 'ℹ';
+
+  const elMsg = document.createElement('span');
+  elMsg.className = 'toast-msg';
+  elMsg.textContent = mensagem;
+
+  toast.appendChild(elIcone);
+  toast.appendChild(elMsg);
 
   container.appendChild(toast);
 
@@ -305,6 +365,62 @@ document.addEventListener('click', (e) => {
   }
 });
 
+/**
+ * Abre um modal de confirmação de exclusão e dispara o callback ao confirmar.
+ * AUTOSSUFICIENTE: se a página não tiver o modal #modal-confirmar no DOM
+ * (caso do dashboard-aluno), cria/injeta um aqui. Funciona em qualquer página.
+ *
+ * @param {string} titulo   – Título do modal (texto puro)
+ * @param {string} msg      – Mensagem; pode conter HTML simples (negrito, etc.)
+ * @param {Function} callback – Executado (await) ao confirmar.
+ *
+ * @example
+ *   confirmarExclusao('Excluir prova', `Remover <b>${_esc(titulo)}</b>?`, async () => {
+ *     await apiFetch(API.provas.deletar(id), { method: 'DELETE' });
+ *   });
+ */
+function confirmarExclusao(titulo, msg, callback) {
+  let modal = document.getElementById('modal-confirmar');
+
+  // Se não existe na página, injeta o modal (mesma marcação do admin).
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = 'modal-confirmar';
+    modal.innerHTML = `
+      <div class="modal modal-sm">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-confirmar-titulo">Confirmar exclusão</h2>
+          <button class="modal-close" data-close-modal="modal-confirmar">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="modal-confirmar-msg" style="font-size:14px; color:var(--c-text-muted); line-height:1.6;"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" data-close-modal="modal-confirmar">Cancelar</button>
+          <button class="btn btn-danger-solid" id="btn-confirmar-acao">Excluir</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('modal-confirmar-titulo').textContent = titulo;
+  // msg pode trazer HTML controlado por quem chama (textos escapados com _esc).
+  document.getElementById('modal-confirmar-msg').innerHTML = msg;
+
+  const btn = document.getElementById('btn-confirmar-acao');
+  btn.onclick = async () => {
+    closeModal('modal-confirmar');
+    if (typeof callback === 'function') {
+      await callback();
+    }
+  };
+
+  openModal('modal-confirmar');
+}
+// Garante acesso global mesmo se este arquivo for carregado como módulo.
+window.confirmarExclusao = confirmarExclusao;
+
 /* ─────────────────────────────────────────
    8. FORMATAÇÃO DE DADOS
    ─────────────────────────────────────── */
@@ -374,6 +490,24 @@ function debounce(fn, ms = 300) {
     timer = setTimeout(() => fn(...args), ms);
   };
 }
+
+/**
+ * Escapa HTML (& < > " ') para inserir texto vindo de dados em innerHTML
+ * ou em atributos com segurança. Disponível globalmente (window._esc),
+ * usado por admin.js e aluno.js.
+ * @param {*} str
+ * @returns {string}
+ */
+function _esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+// Garante acesso global mesmo se este arquivo for carregado como módulo.
+window._esc = _esc;
 
 /* ─────────────────────────────────────────
    9. HELPERS DE HTML (BADGES, ETC.)
@@ -494,41 +628,55 @@ const API = {
     me:       '/auth/me',
   },
   usuarios: {
-    listar:      '/usuarios',
-    buscar:      (id)   => `/usuarios/${id}`,
-    editar:      (id)   => `/usuarios/${id}`,
-    bloquear:    (id)   => `/usuarios/${id}/bloquear`,
-    desbloquear: (id)   => `/usuarios/${id}/desbloquear`,
-    deletar:     (id)   => `/usuarios/${id}`,
-    meuPerfil:   '/usuarios/me/perfil',
+    listar:        '/usuarios',
+    buscar:        (id)   => `/usuarios/${id}`,
+    editar:        (id)   => `/usuarios/${id}`,
+    bloquear:      (id)   => `/usuarios/${id}/bloquear`,
+    desbloquear:   (id)   => `/usuarios/${id}/desbloquear`,
+    deletar:       (id)   => `/usuarios/${id}`,
+    meuPerfil:     '/usuarios/me/perfil',
+    minhaLocalizacao: '/usuarios/me/localizacao',
+    importar:      '/usuarios/importar',
+    modeloImport:  '/usuarios/importar/modelo',
   },
   provas: {
-    listar:    '/provas',
-    criar:     '/provas',
-    buscar:    (id) => `/provas/${id}`,
-    editar:    (id) => `/provas/${id}`,
-    publicar:  (id) => `/provas/${id}/publicar`,
-    deletar:   (id) => `/provas/${id}`,
-    disponiveis: '/provas',               // com filtro status=PUBLICADA
+    listar:      '/provas',
+    criar:       '/provas',
+    buscar:      (id) => `/provas/${id}`,
+    editar:      (id) => `/provas/${id}`,
+    publicar:    (id) => `/provas/${id}/publicar`,
+    deletar:     (id) => `/provas/${id}`,
+    disponiveis: '/provas/disponiveis',    // provas publicadas p/ o aluno (US14)
   },
   questoes: {
-    criar:    '/questoes',
-    editar:   (id) => `/questoes/${id}`,
-    deletar:  (id) => `/questoes/${id}`,
-    listar:   (provaId) => `/questoes?prova_id=${provaId}`,
+    criar:           '/questoes',
+    editar:          (id) => `/questoes/${id}`,
+    deletar:         (id) => `/questoes/${id}`,
+    listar:          (provaId) => `/questoes?prova_id=${provaId}`,
+    alternativas:    (id) => `/questoes/${id}/alternativas`,
+    imagem:          (id) => `/questoes/${id}/imagem`,
+    imagemAlt:       (id, altId) => `/questoes/${id}/alternativas/${altId}/imagem`,
   },
   simulados: {
-    iniciar:        '/simulados',
-    responder:      '/simulados/responder',
-    questaoAtual:   (id) => `/simulados/${id}/questao_atual`,
-    resultado:      (id) => `/simulados/${id}/resultado`,
-    historico:      '/simulados/historico',
+    iniciar:      '/simulados/iniciar',
+    responder:    '/simulados/responder',
+    questaoAtual: (id) => `/simulados/${id}/questao_atual`,
+    resultado:    (id) => `/simulados/${id}/resultado`,
+    pausar:       (id) => `/simulados/${id}/pausar`,
+    retomar:      (id) => `/simulados/${id}/retomar`,
+    historico:    '/simulados/historico',
   },
   certificacoes: {
-    solicitar:  '/certificacoes',
-    historico:  '/certificacoes/historico',
-    download:   (id)     => `/certificacoes/${id}/download`,
-    validar:    (codigo) => `/certificacoes/validar/${codigo}`,
+    solicitar:   '/certificacoes/solicitar',
+    iniciar:     (tentativaId) => `/certificacoes/iniciar/${tentativaId}`,
+    resultado:   (tentativaId) => `/certificacoes/${tentativaId}/resultado`,
+    certificado: (tentativaId) => `/certificacoes/${tentativaId}/certificado`,
+    historico:   '/certificacoes/historico',
+    validar:     (codigo) => `/certificacoes/validar/${codigo}`,
+  },
+  pdf: {
+    certificado:  (tentativaId) => `/pdf/certificados/${tentativaId}`,
+    exportarProva:(provaId)     => `/pdf/provas/${provaId}/exportar`,
   },
   locais: {
     listar:   '/locais',
@@ -537,6 +685,33 @@ const API = {
     editar:   (id) => `/locais/${id}`,
     deletar:  (id) => `/locais/${id}`,
     proximos: '/locais/proximos',
+  },
+  reservas: {
+    listar:      '/reservas',
+    criar:       '/reservas',
+    buscar:      (id) => `/reservas/${id}`,
+    cancelar:    (id) => `/reservas/${id}`,
+    adminTodas:  '/reservas/admin/todas',
+  },
+  inscricoes: {
+    minhas:      '/inscricoes/minhas',
+    inscrever:   (provaId) => `/inscricoes/provas/${provaId}`,
+    cancelar:    (provaId) => `/inscricoes/provas/${provaId}`,
+  },
+  componentes: {
+    listar:      '/componentes/',
+    criar:       '/componentes/',
+    buscar:      (id) => `/componentes/${id}`,
+    editar:      (id) => `/componentes/${id}`,
+    deletar:     (id) => `/componentes/${id}`,
+    vincular:    (provaId) => `/componentes/prova/${provaId}/vincular`,
+    desvincular: (provaId) => `/componentes/prova/${provaId}/vincular`,
+  },
+  geracao: {
+    gerarQuestoes:  (provaId) => `/geracao/provas/${provaId}/questoes`,
+    modelos:        '/geracao/modelos',
+    deletarModelo:  (id) => `/geracao/modelos/${id}`,
+    imagemModelo:   (id) => `/geracao/modelos/${id}/imagem`,
   },
   relatorios: {
     desempenho: '/relatorios/desempenho',
@@ -549,3 +724,39 @@ const API = {
    ─────────────────────────────────────── */
 // Todos os símbolos acima ficam no escopo global (window).
 // admin.js, aluno.js e auth.js podem usá-los diretamente.
+
+/* ─────────────────────────────────────────
+   13. MENU MOBILE (hamburguer off-canvas)
+   ─────────────────────────────────────── */
+(function initMenuMobile() {
+  function montar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar || document.querySelector('.nav-hamburger')) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'nav-hamburger';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Abrir menu');
+    btn.innerHTML = '☰';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+
+    document.body.appendChild(btn);
+    document.body.appendChild(overlay);
+
+    const abrir = (open) => {
+      sidebar.classList.toggle('open', open);
+      overlay.classList.toggle('open', open);
+      btn.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+    };
+    btn.addEventListener('click', () => abrir(!sidebar.classList.contains('open')));
+    overlay.addEventListener('click', () => abrir(false));
+    sidebar.querySelectorAll('a').forEach(a => a.addEventListener('click', () => abrir(false)));
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', montar);
+  } else {
+    montar();
+  }
+})();

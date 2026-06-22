@@ -46,7 +46,8 @@ def resultado_certificacao(
     aluno: models.Usuario = Depends(get_usuario_atual)
 ):
     from app.services import simulado_service
-    return simulado_service.resultado_simulado(tentativa_id, aluno, db)
+    # CERTIFICACAO nao expoe gabarito: apenas aprovado/reprovado, nota e link do certificado (LOGICA-12)
+    return simulado_service.resultado_simulado(tentativa_id, aluno, db, incluir_gabarito=False)
 
 @router.post("/{tentativa_id}/certificado", response_model=schemas.CertificadoPublicoResponse)
 def gerar_certificado(

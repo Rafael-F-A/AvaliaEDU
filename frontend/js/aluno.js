@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!usuario) return;
 
   initUI(usuario);
+  // Preenche avatar + dados pessoais já na carga inicial (estão no localStorage),
+  // sem esperar abrir a "Minha área" nem uma chamada de API.
+  preencherIdentidade(usuario);
   configurarNavegacao();
   configurarFiltros();
   carregarDashboard();
@@ -159,6 +162,33 @@ function configurarNavegacao() {
    4. DASHBOARD
    ─────────────────────────────────────── */
 
+/**
+ * Preenche a identidade do usuário (iniciais no avatar + dados pessoais)
+ * imediatamente a partir do objeto já salvo no localStorage — assim o avatar
+ * aparece em TODAS as seções e a "Minha área" já mostra nome/e-mail/nível antes
+ * mesmo de ser aberta. carregarMinhaArea() depois atualiza totais/histórico.
+ */
+function preencherIdentidade(u) {
+  if (!u) return;
+  const ini = iniciais(u.nome);
+  // Avatares de todas as seções (vários sem id) — preenche por classe.
+  document.querySelectorAll('.user-avatar').forEach(el => { el.textContent = ini; });
+
+  const nomeEl = document.getElementById('area-nome');
+  if (nomeEl) nomeEl.textContent = u.nome || '—';
+  const nsEl = document.getElementById('area-nivel-serie');
+  if (nsEl) nsEl.textContent = [nivelLabel(u.nivel), u.serie].filter(Boolean).join(' — ') || '—';
+  const emailEl = document.getElementById('area-email');
+  if (emailEl) emailEl.value = u.email || '';
+  const ndEl = document.getElementById('area-nivel-display');
+  if (ndEl) ndEl.value = nivelLabel(u.nivel) || '—';
+  const sdEl = document.getElementById('area-serie-display');
+  if (sdEl) sdEl.value = u.serie || '—';
+  if (typeof _renderStatusLocalizacao === 'function') {
+    _renderStatusLocalizacao(u.latitude, u.longitude);
+  }
+}
+
 async function carregarDashboard() {
   try {
     const [historico, certs, provas] = await Promise.allSettled([
@@ -200,7 +230,7 @@ async function carregarDashboard() {
     tbody.innerHTML = recentes.length
       ? recentes.map(t => `
           <tr>
-            <td class="td-name">${t.prova_titulo || '—'}</td>
+            <td class="td-name">${_esc(t.prova_titulo) || '—'}</td>
             <td class="td-muted">${formatarData(t.data_inicio || t.data_realizacao)}</td>
             <td>${formatarNota(t.nota)}</td>
             <td>${badgeResultado(t.resultado)}</td>
@@ -235,7 +265,8 @@ async function carregarProvasAluno() {
     [...historico, ...certHist].forEach(t => {
       const pid = t.prova_id;
       if (!pid) return;
-      if (!tentativasMap[pid] || t.status === 'PAUSADO') tentativasMap[pid] = t;
+      // Prefere a tentativa ATIVA (em andamento/pausada) sobre concluídas.
+      if (!tentativasMap[pid] || t.status === 'PAUSADO' || t.status === 'EM_ANDAMENTO') tentativasMap[pid] = t;
     });
 
     // Mapa inscrição por prova_id
@@ -271,10 +302,11 @@ function renderTabelaProvas(provas, tentativasMap = {}, inscricoesMap = {}) {
   const agora = new Date();
 
   tbody.innerHTML = provas.map(p => {
-    const tent       = tentativasMap[p.id];
-    const finalizado = tent?.status === 'FINALIZADO';
-    const pausado    = tent?.status === 'PAUSADO';
-    const inscrito   = inscricoesMap[p.id];
+    const tent        = tentativasMap[p.id];
+    const concluido   = tent?.status === 'CONCLUIDA';
+    const emAndamento = tent?.status === 'EM_ANDAMENTO';
+    const pausado     = tent?.status === 'PAUSADO';
+    const inscrito    = inscricoesMap[p.id];
 
     // Determinar estado do período de inscrições
     const temPeriodoInscricao = p.data_inicio_inscricao || p.data_fim_inscricao;
@@ -293,9 +325,14 @@ function renderTabelaProvas(provas, tentativasMap = {}, inscricoesMap = {}) {
     // Montar botões de ação
     let acaoBtns = '';
 
-    if (finalizado) {
+    if (concluido) {
       acaoBtns = `<button class="btn btn-ghost btn-sm"
         onclick="verResultadoHistorico(${tent.id}, '${p.tipo}')">Ver resultado</button>`;
+
+    } else if (emAndamento) {
+      // Tentativa em andamento — retoma na questão atual (evita o 409 de "já iniciado").
+      acaoBtns = `<button class="btn btn-primary btn-sm"
+        onclick="continuarProva(${tent.id}, '${p.tipo}')">Continuar</button>`;
 
     } else if (pausado) {
       acaoBtns = `<button class="btn btn-secondary btn-sm"
@@ -338,9 +375,9 @@ function renderTabelaProvas(provas, tentativasMap = {}, inscricoesMap = {}) {
     }
 
     return `
-      <tr data-titulo="${(p.titulo || '').toLowerCase()}" data-tipo="${p.tipo}">
-        <td class="td-name">${p.titulo}</td>
-        <td class="td-muted">${nivelLabel(p.nivel)} ${p.serie ? '— ' + p.serie : ''}</td>
+      <tr data-titulo="${_esc((p.titulo || '').toLowerCase())}" data-tipo="${p.tipo}">
+        <td class="td-name">${_esc(p.titulo)}</td>
+        <td class="td-muted">${nivelLabel(p.nivel)} ${p.serie ? '— ' + _esc(p.serie) : ''}</td>
         <td>${badgeTipoProva(p.tipo)}</td>
         <td class="td-muted">${p.tempo_limite ? p.tempo_limite + ' min' : '—'}</td>
         <td class="td-muted">${prazoCel}</td>
@@ -358,7 +395,7 @@ function renderTabelaHistorico(historico) {
 
   tbody.innerHTML = historico.map(t => `
     <tr>
-      <td class="td-name">${t.prova_titulo || '—'}</td>
+      <td class="td-name">${_esc(t.prova_titulo) || '—'}</td>
       <td>${badgeTipoProva(t.tipo)}</td>
       <td class="td-muted">${formatarData(t.data_inicio || t.data_realizacao)}</td>
       <td><strong>${formatarNota(t.nota)}</strong></td>
@@ -652,8 +689,8 @@ function _renderLocais(lista) {
           </svg>
         </div>
         <div class="local-card-info">
-          <p class="local-card-nome">${local.nome}</p>
-          <p class="local-card-end">${local.endereco}${local.cidade ? ', ' + local.cidade : ''}</p>
+          <p class="local-card-nome">${_esc(local.nome)}</p>
+          <p class="local-card-end">${_esc(local.endereco)}${local.cidade ? ', ' + _esc(local.cidade) : ''}</p>
         </div>
         <div class="local-card-meta">
           <span class="local-dist">${distTxt}</span>
@@ -680,9 +717,9 @@ function selecionarLocal(localId) {
     ? `${local.distancia_km.toFixed(1)} km de distância`
     : '';
   document.getElementById('confirmar-local-info').innerHTML = `
-    <p style="font-weight:600; font-size:15px; color:var(--c-primary); margin:0 0 6px;">${local.nome}</p>
+    <p style="font-weight:600; font-size:15px; color:var(--c-primary); margin:0 0 6px;">${_esc(local.nome)}</p>
     <p style="font-size:13px; color:var(--c-text-muted); margin:0 0 4px;">
-      ${local.endereco}${local.cidade ? ' — ' + local.cidade : ''}
+      ${_esc(local.endereco)}${local.cidade ? ' — ' + _esc(local.cidade) : ''}
     </p>
     ${distTxt ? `<p style="font-size:12px; color:var(--c-text-muted); margin:0;">📍 ${distTxt}</p>` : ''}
     <p style="font-size:12px; color:var(--c-text-muted); margin:4px 0 0;">
@@ -707,6 +744,9 @@ function selecionarLocal(localId) {
 async function confirmarInicioProva() {
   const { provaId, tipo, escolha, localSelecionado } = modalidade;
   const btn = document.getElementById('btn-confirmar-modalidade');
+  // frontend-aluno-3: guarda o rótulo original para destravar o botão no
+  // finally (o fluxo ONLINE antes deixava o botão preso em "Aguarde...").
+  const btnLabelOriginal = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
 
   try {
@@ -754,8 +794,17 @@ async function confirmarInicioProva() {
     }
 
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar e reservar vaga'; }
     showToast(err.message || 'Não foi possível criar a reserva.', 'danger', 6000);
+  } finally {
+    // Destrava o botão sempre (online com sucesso fecha o modal; online com erro
+    // e presencial continuam com o modal aberto e o botão restaurado).
+    if (btn) {
+      btn.disabled = false;
+      // No fluxo PRESENCIAL com sucesso o passo já trocou para "comprovante" e o
+      // botão foi ajustado para "Confirmar e reservar vaga"; nos demais casos
+      // restauramos o rótulo original capturado no início.
+      if (btn.textContent === 'Aguarde...') btn.textContent = btnLabelOriginal;
+    }
   }
 }
 
@@ -805,21 +854,10 @@ async function _iniciarProva(provaId, tipo, escolha) {
     exam.provaId       = provaId;
     exam.provaInfo     = info;
     exam.tentativaId   = dados.tentativa_id;
-    exam.totalQuestoes = dados.total_questoes;
 
-    exam.questoesCache.push({
-      id:             dados.questao_id,
-      enunciado:      dados.enunciado,
-      alternativas:   dados.alternativas || [],
-      questao_numero: dados.questao_numero,
-    });
-
-    renderQuestaoExam();
+    // Carrega a prova INTEIRA (todas as questões) — permite navegar/pular/trocar.
+    await carregarQuestoesExam();
     irPara('realizar-prova');
-
-    const tempoSegundos = dados.tempo_restante_segundos
-      ?? (info?.tempo_limite ? info.tempo_limite * 60 : null);
-    if (tempoSegundos) iniciarTimer(tempoSegundos);
 
   } finally {
     setLoading(false);
@@ -847,7 +885,7 @@ async function carregarReservas() {
 
 function _renderMetricasReservas(lista) {
   const ativas     = lista.filter(r => r.status === 'ATIVA').length;
-  const utilizadas = lista.filter(r => r.status === 'UTILIZADA').length;
+  const utilizadas = lista.filter(r => r.status === 'CONFIRMADA' || r.status === 'UTILIZADA').length;
   const inativas   = lista.filter(r => r.status === 'CANCELADA' || r.status === 'EXPIRADA').length;
 
   const elA = document.getElementById('res-stat-ativas');
@@ -890,14 +928,14 @@ function _renderListaReservas(lista) {
         <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
           <div style="flex:1; min-width:180px;">
             <div style="font-size:15px; font-weight:700; color:var(--c-text); margin-bottom:4px;">
-              ${r.prova_titulo || '—'}
+              ${_esc(r.prova_titulo) || '—'}
             </div>
             <div style="font-size:13px; color:var(--c-text-muted); margin-bottom:6px;">
-              📍 ${r.local?.nome || '—'}
-              ${r.local?.cidade ? ` — ${r.local.cidade}` : ''}
+              📍 ${_esc(r.local?.nome) || '—'}
+              ${r.local?.cidade ? ` — ${_esc(r.local.cidade)}` : ''}
             </div>
             <div style="font-size:12px; color:var(--c-text-muted);">
-              ${r.local?.endereco || ''}
+              ${_esc(r.local?.endereco) || ''}
             </div>
           </div>
 
@@ -914,13 +952,13 @@ function _renderListaReservas(lista) {
         ${r.necessidades_especiais ? `
           <div style="margin-top:10px; font-size:12px; color:var(--c-text-muted);
                background:var(--c-bg); padding:6px 10px; border-radius:6px;">
-            ♿ ${r.necessidades_especiais}
+            ♿ ${_esc(r.necessidades_especiais)}
           </div>` : ''}
 
         ${ativa ? `
           <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--c-border);
                display:flex; gap:8px; justify-content:flex-end;">
-            <button class="btn btn-ghost btn-sm" onclick="cancelarMinhaReserva(${r.id}, '${(r.prova_titulo || '').replace(/'/g, '')}')">
+            <button class="btn btn-ghost btn-sm" onclick="cancelarMinhaReserva(${r.id})">
               Cancelar reserva
             </button>
           </div>` : ''}
@@ -932,7 +970,8 @@ function _renderListaReservas(lista) {
 function _badgeReserva(status) {
   const map = {
     ATIVA:      ['badge-publicada',    'Ativa'],
-    UTILIZADA:  ['badge-aprovado',     'Utilizada'],
+    CONFIRMADA: ['badge-aprovado',     'Utilizada'],
+    UTILIZADA:  ['badge-aprovado',     'Utilizada'],  // legado
     CANCELADA:  ['badge-reprovado',    'Cancelada'],
     EXPIRADA:   ['badge-rascunho',     'Expirada'],
   };
@@ -950,10 +989,10 @@ function _tempoRestante(dataFim) {
 }
 
 /** Cancela uma reserva com confirmação */
-function cancelarMinhaReserva(reservaId, provaTitulo) {
+function cancelarMinhaReserva(reservaId) {
   confirmarExclusao(
     'Cancelar reserva',
-    `Tem certeza que deseja cancelar a reserva para "${provaTitulo}"? A vaga será liberada.`,
+    'Tem certeza que deseja cancelar esta reserva? A vaga será liberada.',
     async () => {
       try {
         await apiFetch(`/reservas/${reservaId}`, { method: 'DELETE' });
@@ -968,31 +1007,75 @@ function cancelarMinhaReserva(reservaId, provaTitulo) {
 
 
 
-/** Retoma um simulado pausado. */
+/**
+ * Carrega TODAS as questões da tentativa (a prova inteira) e monta o exame.
+ * Usado por iniciar / continuar / retomar. Pré-preenche as respostas já dadas
+ * e posiciona na primeira questão ainda não respondida.
+ */
+async function carregarQuestoesExam() {
+  const dados = await apiFetch(`/simulados/${exam.tentativaId}/questoes`);
+  exam.totalQuestoes = dados.total_questoes;
+  exam.questoesCache = (dados.questoes || []).map(q => ({
+    id:             q.questao_id,
+    enunciado:      q.enunciado,
+    alternativas:   q.alternativas || [],
+    questao_numero: q.numero,
+    imagem_url:     q.imagem_url || null,
+  }));
+  exam.respostasSalvas = {};
+  exam.enviadas = new Set();
+  Object.entries(dados.respostas || {}).forEach(([qid, altId]) => {
+    exam.respostasSalvas[Number(qid)] = altId;
+    exam.enviadas.add(Number(qid));
+  });
+  // Posiciona na 1ª questão ainda não respondida (ou na primeira).
+  const idx = exam.questoesCache.findIndex(q => exam.respostasSalvas[q.id] === undefined);
+  exam.indiceAtual = idx >= 0 ? idx : 0;
+  const atualId = exam.questoesCache[exam.indiceAtual]?.id;
+  exam.altSelecionadaAgora = exam.respostasSalvas[atualId] ?? null;
+  renderQuestaoExam();
+  if (dados.tempo_restante_segundos) iniciarTimer(dados.tempo_restante_segundos);
+}
+
+/** Erro ao entrar/continuar/retomar (ex.: tempo esgotado) → volta para a lista. */
+function _tratarErroEntrarProva(err) {
+  const msg = (err && err.message) || '';
+  if (/tempo esgotad|finalizad|prazo|expirou/i.test(msg)) {
+    showToast('Esta prova já foi encerrada (tempo esgotado). Veja o resultado em Provas.', 'warning', 5000);
+    irPara('provas');
+  } else {
+    showToast(msg || 'Não foi possível abrir a prova.', 'danger');
+  }
+}
+
+/** Continua uma tentativa EM ANDAMENTO (carrega a prova inteira). */
+async function continuarProva(tentativaId, tipo = 'SIMULADO') {
+  setLoading(true);
+  try {
+    resetarExam();
+    exam.tipo        = tipo;
+    exam.tentativaId = tentativaId;
+    await carregarQuestoesExam();
+    irPara('realizar-prova');
+  } catch (err) {
+    _tratarErroEntrarProva(err);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/** Retoma um simulado pausado (un-pausa e carrega a prova inteira). */
 async function retomarProva(tentativaId) {
   setLoading(true);
   try {
-    const dados = await apiFetch(`/simulados/${tentativaId}/retomar`, { method: 'PATCH' });
-
+    await apiFetch(`/simulados/${tentativaId}/retomar`, { method: 'PATCH' });
     resetarExam();
-    exam.tipo         = 'SIMULADO';
-    exam.tentativaId  = tentativaId;
-    exam.totalQuestoes = dados.total_questoes;
-
-    exam.questoesCache.push({
-      id:            dados.questao_id,
-      enunciado:     dados.enunciado,
-      alternativas:  dados.alternativas || [],
-      questao_numero: dados.questao_numero,
-    });
-
-    renderQuestaoExam();
+    exam.tipo        = 'SIMULADO';
+    exam.tentativaId = tentativaId;
+    await carregarQuestoesExam();
     irPara('realizar-prova');
-
-    if (dados.tempo_restante_segundos) iniciarTimer(dados.tempo_restante_segundos);
-
   } catch (err) {
-    showToast(err.message || 'Não foi possível retomar a prova.', 'danger');
+    _tratarErroEntrarProva(err);
   } finally {
     setLoading(false);
   }
@@ -1013,8 +1096,25 @@ function resetarExam() {
    7. RENDERIZAÇÃO DO EXAME
    ─────────────────────────────────────── */
 
+/**
+ * Valida que uma URL é http(s) (evita javascript:, data:, etc.) antes de
+ * usá-la em atributos src. Retorna true só para http:// e https://.
+ */
+function _urlSegura(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const u = new URL(url, window.location.origin);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** Renderiza a questão atual (baseado em exam.indiceAtual). */
 function renderQuestaoExam() {
+  // interrompe a leitura em voz da questão anterior
+  if (window.Narrador) Narrador.parar();
+
   const q = exam.questoesCache[exam.indiceAtual];
   if (!q) return;
 
@@ -1033,7 +1133,7 @@ function renderQuestaoExam() {
   // Imagem
   const imgWrap = document.getElementById('exam-imagem-wrap');
   const imgEl   = document.getElementById('exam-imagem');
-  if (q.imagem_url) {
+  if (q.imagem_url && _urlSegura(q.imagem_url)) {
     imgEl.src = q.imagem_url;
     imgWrap.style.display = '';
   } else {
@@ -1060,10 +1160,15 @@ function renderQuestaoExam() {
                onclick="selecionarAlternativa(${alt.id}, this)" role="radio"
                aria-checked="${altSalva === alt.id}" tabindex="0">
             <span class="alt-letra">${letras[i] || i + 1}</span>
-            <span class="alt-texto">${alt.texto}</span>
-            ${alt.imagem_url
-              ? `<img src="${alt.imagem_url}" alt="Imagem da alternativa"
+            <span class="alt-texto">${_esc(alt.texto)}</span>
+            ${alt.imagem_url && _urlSegura(alt.imagem_url)
+              ? `<img src="${_esc(alt.imagem_url)}" alt="Imagem da alternativa"
                   style="max-width:200px;margin-top:8px;border-radius:6px;">`
+              : ''}
+            ${Narrador.suportado()
+              ? `<button type="button" class="alt-ouvir" title="Ouvir esta opção"
+                   aria-label="Ouvir esta opção"
+                   onclick="event.stopPropagation(); narrarAlternativaEl(this)">🔊</button>`
               : ''}
           </div>`;
       }).join('');
@@ -1164,53 +1269,39 @@ async function salvarResposta(silencioso = false) {
     return false;
   }
 
-  // Se já enviada, só atualiza localmente
-  if (exam.enviadas.has(q.id)) {
-    exam.respostasSalvas[q.id] = alt;
+  // Nada mudou em relação ao que já está salvo → não precisa reenviar.
+  if (exam.respostasSalvas[q.id] === alt) {
     return true;
   }
 
   try {
     const endpoint = exam.tipo === 'SIMULADO' ? '/simulados/responder' : '/certificacoes/responder';
-    const resp = await apiFetch(endpoint, {
+    await apiFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({
-        tentativa_id: exam.tentativaId,
-        questao_id:   q.id,
+        tentativa_id:   exam.tentativaId,
+        questao_id:     q.id,
         alternativa_id: alt,
       }),
     });
 
     exam.respostasSalvas[q.id] = alt;
     exam.enviadas.add(q.id);
+    atualizarNavGrid();
 
-    // Se o servidor retornou a próxima questão, adiciona ao cache
-    if (!resp.finalizado && resp.proxima_questao_id) {
-      const jaTemProxima = exam.questoesCache.length > exam.indiceAtual + 1;
-      if (!jaTemProxima) {
-        exam.questoesCache.push({
-          id:            resp.proxima_questao_id,
-          enunciado:     resp.proxima_questao_enunciado,
-          alternativas:  resp.proximas_alternativas || [],
-          questao_numero: resp.questao_numero,
-        });
-        exam.totalQuestoes = resp.total_questoes || exam.totalQuestoes;
-      }
-    }
-
-    if (!silencioso) showToast('Resposta salva!', 'success', 1800);
-
-    // Prova finalizada automaticamente pelo servidor
-    if (resp.finalizado) {
-      pararTimer();
-      await carregarResultado();
-      return true;
-    }
-
+    if (!silencioso) showToast('Resposta salva!', 'success', 1500);
     return true;
 
   } catch (err) {
-    if (!silencioso) showToast(err.message || 'Erro ao salvar resposta.', 'danger');
+    const msg = (err && err.message) || '';
+    if (/tempo esgotad/i.test(msg)) {
+      // O servidor encerrou a prova por tempo — segue direto para o resultado.
+      pararTimer();
+      showToast('Tempo esgotado. A prova foi encerrada.', 'warning', 4000);
+      await carregarResultado();
+      return false;
+    }
+    if (!silencioso) showToast(msg || 'Erro ao salvar resposta.', 'danger');
     return false;
   }
 }
@@ -1218,43 +1309,66 @@ async function salvarResposta(silencioso = false) {
 /** Botão Anterior / Próxima */
 async function navegarQuestao(direcao) {
   if (direcao === 1) {
-    // Avançar: salva primeiro
     const q = exam.questoesCache[exam.indiceAtual];
-    const temAlt = exam.questoesCache[exam.indiceAtual]?.alternativas?.length > 0;
-
-    if (temAlt && exam.altSelecionadaAgora === null && !exam.enviadas.has(q?.id)) {
-      document.getElementById('exam-alert').textContent = 'Selecione uma alternativa.';
-      document.getElementById('exam-alert').className   = 'alert-box error show';
-      return;
-    }
-
     const isUltima = exam.indiceAtual === exam.totalQuestoes - 1;
+    const temAlt = q?.alternativas?.length > 0;
+    const selecionou = exam.altSelecionadaAgora !== null;
+    const jaRespondida = exam.respostasSalvas[q?.id] !== undefined;
 
-    if (exam.altSelecionadaAgora !== null && !exam.enviadas.has(q?.id)) {
+    // Salva se a seleção atual difere do que já está salvo.
+    if (selecionou && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
       const ok = await salvarResposta(true);
       if (!ok) return;
     }
 
+    // Última questão → finalizar (não exige resposta; o modal avisa pendências).
     if (isUltima) {
       confirmarFinalizarProva();
       return;
     }
 
-    if (exam.indiceAtual < exam.questoesCache.length - 1) {
-      exam.indiceAtual++;
-      exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
-      renderQuestaoExam();
-    } else {
-      showToast('Sem próxima questão disponível ainda.', 'warning');
+    // Não é a última: exige uma alternativa OU usar "Pular questão".
+    if (temAlt && !selecionou && !jaRespondida) {
+      const alerta = document.getElementById('exam-alert');
+      alerta.textContent = 'Selecione uma alternativa para avançar — ou use "Pular questão".';
+      alerta.className = 'alert-box error show';
+      return;
     }
 
+    exam.indiceAtual++;
+    exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
+    renderQuestaoExam();
+
   } else {
-    // Voltar
+    // Voltar — salva alteração da atual antes, se houver.
     if (exam.indiceAtual > 0) {
+      const q = exam.questoesCache[exam.indiceAtual];
+      if (exam.altSelecionadaAgora !== null && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
+        await salvarResposta(true);
+      }
       exam.indiceAtual--;
       exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
       renderQuestaoExam();
     }
+  }
+}
+
+/** Botão "Pular questão" → abre a confirmação. */
+function pularQuestao() {
+  if (exam.indiceAtual >= exam.totalQuestoes - 1) {
+    showToast('Esta é a última questão. Use "Finalizar prova".', 'info');
+    return;
+  }
+  openModal('modal-pular');
+}
+
+/** Confirma o pulo → avança SEM registrar resposta (pode voltar depois). */
+function confirmarPularQuestao() {
+  closeModal('modal-pular');
+  if (exam.indiceAtual < exam.totalQuestoes - 1) {
+    exam.indiceAtual++;
+    exam.altSelecionadaAgora = exam.respostasSalvas[exam.questoesCache[exam.indiceAtual]?.id] ?? null;
+    renderQuestaoExam();
   }
 }
 
@@ -1322,6 +1436,19 @@ function confirmarFinalizarProva() {
 async function finalizarProva() {
   closeModal('modal-finalizar');
   pararTimer();
+  try {
+    // Salva a questão atual se houver seleção ainda não enviada.
+    const q = exam.questoesCache[exam.indiceAtual];
+    if (exam.altSelecionadaAgora !== null && exam.altSelecionadaAgora !== exam.respostasSalvas[q?.id]) {
+      await salvarResposta(true);
+    }
+    // Finalização EXPLÍCITA no servidor (calcula a nota; não-respondidas = erradas).
+    if (exam.tentativaId) {
+      await apiFetch(`/simulados/${exam.tentativaId}/finalizar`, { method: 'POST' });
+    }
+  } catch (err) {
+    // Se já estava concluída (ex.: tempo esgotado), apenas segue para o resultado.
+  }
   await carregarResultado();
 }
 
@@ -1366,6 +1493,7 @@ async function carregarResultado() {
     const aprovado = res.status === 'APROVADO';
 
     document.getElementById('res-nota').textContent       = formatarNota(nota);
+    // res-prova-nome usa textContent — já é seguro, sem necessidade de _esc.
     document.getElementById('res-prova-nome').textContent = res.prova_titulo || 'Prova';
     document.getElementById('res-percentual').textContent = `${pct}%`;
     document.getElementById('res-acertos-label').textContent = `${acertos} de ${total} acertos`;
@@ -1378,15 +1506,35 @@ async function carregarResultado() {
     badge.textContent  = aprovado ? 'Aprovado' : 'Reprovado';
     badge.className    = `badge ${aprovado ? 'badge-aprovado' : 'badge-reprovado'}`;
 
-    // Gabarito
+    // Gabarito / revisão (LOGICA-11 / frontend-aluno-6)
+    // SIMULADO detalha escolhida x correta; CERTIFICAÇÃO não traz "respostas"
+    // (o backend omite o gabarito), caindo no "Gabarito não disponível".
     const tbody = document.getElementById('res-gabarito-tbody');
+    const ehSimulado = exam.tipo === 'SIMULADO';
     if (res.respostas && res.respostas.length) {
       tbody.innerHTML = res.respostas.map((r, i) => {
-        const ok = r.correta;
+        const ok = r.acertou;
+        // No SIMULADO mostramos a alternativa escolhida e a correta abaixo do
+        // enunciado; tudo escapado com _esc (enunciado/alternativas digitados
+        // por professores). data: e < > não devem injetar HTML.
+        const revisao = ehSimulado
+          ? `<div style="margin-top:6px; font-size:12px; line-height:1.5;">
+               <div style="color:var(--c-text-muted);">
+                 Sua resposta:
+                 <strong style="color:${ok ? 'var(--c-success)' : 'var(--c-danger)'};">
+                   ${_esc(r.alternativa_escolhida) || '— (sem resposta)'}
+                 </strong>
+               </div>
+               ${!ok ? `<div style="color:var(--c-text-muted);">
+                 Correta: <strong style="color:var(--c-success);">${_esc(r.alternativa_correta) || '—'}</strong>
+               </div>` : ''}
+             </div>`
+          : '';
         return `<tr>
           <td>${i + 1}</td>
           <td class="td-muted" style="max-width:300px; white-space:normal;">
-            ${r.enunciado || r.questao_id || '—'}
+            ${_esc(r.enunciado) || _esc(r.questao_id) || '—'}
+            ${revisao}
           </td>
           <td>
             <span class="badge ${ok ? 'badge-aprovado' : 'badge-reprovado'}">
@@ -1411,7 +1559,21 @@ async function carregarResultado() {
     }
 
   } catch (err) {
-    showToast(err.message || 'Erro ao carregar resultado.', 'danger');
+    // frontend-aluno-7: não existe endpoint dedicado de "finalizar" — a
+    // finalização ocorre ao responder a última questão (ou por tempo). Se o
+    // aluno acionou /resultado antes de a tentativa estar concluída, o backend
+    // responde 400 com "ainda não finalizado". Tratamos de forma graciosa, sem
+    // quebrar: continuamos na prova e orientamos o aluno.
+    const msg = err.message || '';
+    if (/ainda não finalizad/i.test(msg)) {
+      showToast(
+        'Ainda há questões a responder. Responda todas as questões (ou aguarde o término do tempo) para ver o resultado.',
+        'warning',
+        6000
+      );
+    } else {
+      showToast(msg || 'Erro ao carregar resultado.', 'danger');
+    }
   } finally {
     setLoading(false);
   }
@@ -1887,3 +2049,101 @@ function formatarDataHora(iso) {
     hour: '2-digit', minute: '2-digit',
   });
 }
+
+/* ─────────────────────────────────────────
+   15. NARRADOR DE QUESTÃO (leitura em voz alta)
+   ─────────────────────────────────────── */
+
+/** Lê em voz alta a questão atual: enunciado + todas as alternativas. */
+function narrarQuestaoAtual() {
+  const q = exam.questoesCache[exam.indiceAtual];
+  if (!q) return;
+  const num = q.questao_numero || (exam.indiceAtual + 1);
+  const trechos = [`Questão ${num}. ${q.enunciado || ''}`];
+  if (q.imagem_url) trechos.push('Esta questão tem uma imagem.');
+
+  const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+  (q.alternativas || [])
+    .slice()
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    .forEach((alt, i) => {
+      const letra = letras[i] || (i + 1);
+      const txt = (alt.texto || '').trim();
+      trechos.push(txt ? `Opção ${letra}. ${txt}` : `Opção ${letra}. Imagem.`);
+    });
+
+  Narrador.falar(trechos);
+}
+
+/** Lê em voz alta apenas a alternativa do botão clicado (lê do DOM). */
+function narrarAlternativaEl(btn) {
+  const item = btn.closest('.alternativa-item');
+  if (!item) return;
+  const letra = (item.querySelector('.alt-letra')?.textContent || '').trim();
+  const texto = (item.querySelector('.alt-texto')?.textContent || '').trim();
+  Narrador.falar(texto ? `Opção ${letra}. ${texto}` : `Opção ${letra}. Imagem.`);
+}
+
+/** Botão único Pausar/Continuar — decide pela label atual. */
+function narradorPausarContinuar() {
+  const btn = document.getElementById('narrador-pausar');
+  if (btn && btn.textContent.includes('Continuar')) Narrador.continuar();
+  else Narrador.pausar();
+}
+
+/** Define a velocidade e destaca o botão escolhido. */
+function narradorSetVeloc(rate, btn) {
+  Narrador.setVelocidade(rate);
+  document.querySelectorAll('.narrador-veloc-btn').forEach(b => {
+    b.classList.remove('ativo');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  if (btn) {
+    btn.classList.add('ativo');
+    btn.setAttribute('aria-pressed', 'true');
+  }
+}
+
+/** Atualiza a UI da barra conforme o estado do narrador. */
+function narradorAtualizarUI(estado) {
+  const pausar = document.getElementById('narrador-pausar');
+  const parar  = document.getElementById('narrador-parar');
+  if (!pausar || !parar) return;
+  const ativo = (estado === 'falando' || estado === 'pausado');
+  // sempre visíveis; apenas habilita/desabilita conforme o estado
+  pausar.disabled = !ativo;
+  parar.disabled  = !ativo;
+  const pausado = estado === 'pausado';
+  pausar.textContent = pausado ? '▶ Continuar' : '⏸ Pausar';
+  pausar.setAttribute('aria-label', pausado ? 'Continuar leitura' : 'Pausar leitura');
+}
+
+/** Wrapper para o onclick do botão Parar (Narrador é módulo). */
+function narradorParar() {
+  Narrador.parar();
+}
+
+/** Inicializa a barra do narrador (suporte, estado, velocidade persistida). */
+function initNarradorUI() {
+  const bar = document.getElementById('narrador-bar');
+  if (!bar || !window.Narrador) return;
+
+  if (!Narrador.suportado()) {
+    bar.classList.add('narrador-indisponivel');
+    bar.innerHTML = '<span class="narrador-aviso">🔇 Seu navegador não suporta leitura em voz.</span>';
+    return;
+  }
+
+  Narrador.onEstado(narradorAtualizarUI);
+  narradorAtualizarUI('parado');
+
+  // reflete a velocidade salva nos botões
+  const r = Narrador.getVelocidade();
+  document.querySelectorAll('.narrador-veloc-btn').forEach(b => {
+    const ativo = Math.abs(parseFloat(b.dataset.rate) - r) < 0.001;
+    b.classList.toggle('ativo', ativo);
+    b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initNarradorUI);

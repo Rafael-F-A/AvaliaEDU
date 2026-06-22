@@ -1036,6 +1036,7 @@ tbody td {
    ─────────────────────────────────────── */
 @media (max-width: 900px) {
   :root { --sidebar-w: 64px; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
 
   .sidebar-logo-name { display: none; }
   .sidebar-role      { display: none; }
@@ -1059,10 +1060,47 @@ tbody td {
   .two-col { grid-template-columns: 1fr; }
 }
 
+/* Menu hamburguer (mobile) — escondido por padrão, injetado por global.js */
+.nav-hamburger { display: none; }
+.sidebar-overlay { display: none; }
+
 @media (max-width: 600px) {
-  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  /* sidebar vira off-canvas controlada pelo hamburguer */
+  :root { --sidebar-w: 240px; }
+  .sidebar {
+    position: fixed; left: 0; top: 0;
+    width: 240px; height: 100vh;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 1000;
+    box-shadow: 2px 0 18px rgba(0,0,0,.35);
+  }
+  .sidebar.open { transform: translateX(0); }
+  /* reexibe os rótulos (desfaz o colapso para ícones do breakpoint 900px) */
+  .sidebar-logo-name, .sidebar-role, .sidebar-username { display: block; }
+  .sidebar-nav a { justify-content: flex-start; padding: 10px 14px; }
+  .sidebar-nav a span { display: inline; }
+  .sidebar-nav .nav-icon { width: 20px; height: 20px; margin-right: 10px; }
+  .btn-logout { padding: var(--sp-2) var(--sp-3); font-size: inherit; }
+  .btn-logout::before { content: ''; }
+
+  .nav-hamburger {
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; top: 10px; left: 10px; z-index: 1001;
+    width: 44px; height: 44px;
+    background: var(--c-sidebar); color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 22px; line-height: 1; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .sidebar-overlay.open {
+    display: block; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 999;
+  }
+
+  .metric-grid { grid-template-columns: 1fr; }
   .filter-bar { flex-direction: column; align-items: stretch; }
-  .page-header { flex-direction: column; gap: var(--sp-3); }
+  .page-header { flex-direction: column; gap: var(--sp-3); padding-left: 64px; }
   .page-header-actions { margin-left: 0; }
   .modal { max-width: 100%; margin: auto; }
   #toast-container { right: var(--sp-3); left: var(--sp-3); }

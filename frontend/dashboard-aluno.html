@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Painel do aluno no AvaliaEDU — provas, simulados, resultados e certificados.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Painel Aluno — AvaliaEdu</title>
   <link rel="stylesheet" href="css/global.css">
   <link rel="stylesheet" href="css/aluno.css">
@@ -279,6 +281,20 @@
           <!-- Questão -->
           <div class="card" id="exam-questao-card">
             <div id="exam-questao-numero" style="font-size:12px; font-weight:600; color:var(--c-text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.5px;">Questão 1</div>
+
+            <!-- Narrador de questão (leitura em voz alta — acessibilidade) -->
+            <div id="narrador-bar" class="narrador-bar" role="group" aria-label="Leitura em voz alta da questão">
+              <button type="button" id="narrador-ouvir" class="narrador-btn narrador-btn-primario" onclick="narrarQuestaoAtual()" aria-label="Ouvir a questão e as alternativas">🔊 Ouvir</button>
+              <button type="button" id="narrador-pausar" class="narrador-btn" onclick="narradorPausarContinuar()" aria-label="Pausar leitura" disabled>⏸ Pausar</button>
+              <button type="button" id="narrador-parar" class="narrador-btn" onclick="narradorParar()" aria-label="Parar leitura" disabled>⏹ Parar</button>
+              <span class="narrador-veloc" role="group" aria-label="Velocidade da leitura">
+                <span class="narrador-veloc-label">Velocidade</span>
+                <button type="button" class="narrador-veloc-btn" data-rate="0.7" onclick="narradorSetVeloc(0.7, this)" aria-pressed="false">Devagar</button>
+                <button type="button" class="narrador-veloc-btn ativo" data-rate="1" onclick="narradorSetVeloc(1, this)" aria-pressed="true">Normal</button>
+                <button type="button" class="narrador-veloc-btn" data-rate="1.3" onclick="narradorSetVeloc(1.3, this)" aria-pressed="false">Rápido</button>
+              </span>
+            </div>
+
             <div id="exam-enunciado" style="font-size:15px; line-height:1.7; color:var(--c-text); margin-bottom:24px; font-weight:500;"></div>
             <div id="exam-imagem-wrap" style="display:none; margin-bottom:20px;">
               <img id="exam-imagem" src="" alt="Imagem da questão" style="max-width:100%; border-radius:8px; border:1px solid var(--c-border);">
@@ -299,6 +315,7 @@
             <div style="display:flex; gap:12px; margin-top:24px; flex-wrap:wrap;">
               <button class="btn btn-ghost" id="btn-anterior" onclick="navegarQuestao(-1)">← Anterior</button>
               <button class="btn btn-secondary" onclick="salvarResposta()" id="btn-salvar-resp">Salvar resposta</button>
+              <button class="btn btn-ghost" id="btn-pular" onclick="pularQuestao()">Pular questão</button>
               <button class="btn btn-primary" id="btn-proxima" onclick="navegarQuestao(1)">Próxima →</button>
             </div>
 
@@ -527,7 +544,7 @@
           <select class="form-select form-select-sm" id="res-filtro-status" onchange="filtrarReservas()">
             <option value="">Todas</option>
             <option value="ATIVA">Ativas</option>
-            <option value="UTILIZADA">Utilizadas</option>
+            <option value="CONFIRMADA">Utilizadas</option>
             <option value="CANCELADA">Canceladas</option>
             <option value="EXPIRADA">Expiradas</option>
           </select>
@@ -542,6 +559,7 @@
     </section>
 
     <!-- ─── SEÇÃO: MINHA ÁREA ─── -->
+    <section id="section-minha-area" class="dash-section hidden">
 
       <header class="page-header">
         <div class="page-header-left">
@@ -795,6 +813,28 @@
 </div>
 
 <!-- ═══════════════════════════════════════
+     MODAL: CONFIRMAR PULAR QUESTÃO
+═══════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-pular">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Pular questão?</h2>
+      <button class="modal-close" data-close-modal="modal-pular">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px; color:var(--c-text-muted); line-height:1.6;">
+        Certeza que deseja pular essa questão? Você pode voltar a ela depois pela
+        navegação. Questões não respondidas contam como erradas no resultado.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close-modal="modal-pular">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarPularQuestao()">Pular questão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
      MODAL: ESCOLHER MODALIDADE (US23–25)
 ═══════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-modalidade">
@@ -953,6 +993,7 @@
      SCRIPTS
 ═══════════════════════════════════════ -->
 <script src="js/global.js"></script>
+<script src="js/narrador.js"></script>
 <script src="js/aluno.js"></script>
 </body>
 </html>

@@ -41,15 +41,46 @@ def _validar_alternativas(alternativas: list) -> None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"A questão deve ter exatamente 1 alternativa correta. {total_corretas} foram marcadas.",
         )
-    
+
+
+def _obter_prova_editavel(prova_id: int, db: Session) -> models.Prova:
+    """
+    Carrega a prova e garante que ela pode receber alterações de questões.
+
+    Regras de proteção (preserva o gabarito de respostas já registradas):
+    - Só prova em RASCUNHO pode ter questões criadas/editadas/excluídas.
+    - Prova PUBLICADA é bloqueada (altere para RASCUNHO primeiro).
+    - Se já existem tentativas vinculadas, qualquer alteração é bloqueada,
+      pois mudar o gabarito invalidaria respostas já registradas.
+    """
+    prova = db.query(models.Prova).filter(models.Prova.id == prova_id).first()
+    if not prova:
+        raise HTTPException(status_code=404, detail="Prova não encontrada.")
+
+    if prova.status == "PUBLICADA":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Prova publicada não pode ter suas questões alteradas. Altere o status para RASCUNHO primeiro.",
+        )
+
+    tem_tentativas = db.query(models.Tentativa).filter(
+        models.Tentativa.prova_id == prova_id,
+    ).first()
+    if tem_tentativas:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A prova já possui tentativas registradas; suas questões não podem mais ser alteradas para preservar o gabarito das respostas já registradas.",
+        )
+
+    return prova
+
 # CRUD de questões
 
 def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
     _validar_alternativas(dados.alternativas)
 
-    prova = db.query(models.Prova).filter(models.Prova.id == dados.prova_id).first()
-    if not prova:
-        raise HTTPException(status_code=404, detail="Prova não encontrada.")
+    # Só permite vincular/criar questão em prova RASCUNHO (e sem tentativas).
+    prova = _obter_prova_editavel(dados.prova_id, db)
 
     nova_questao = models.Questao(
         enunciado=dados.enunciado,
@@ -88,6 +119,9 @@ def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -
     if not questao:
         raise HTTPException(status_code=404, detail="Questão não encontrada.")
 
+    # Bloqueia edição se a prova estiver PUBLICADA ou já tiver tentativas.
+    _obter_prova_editavel(questao.prova_id, db)
+
     questao.enunciado = dados.enunciado
     questao.nivel_dificuldade = dados.nivel_dificuldade
     questao.imagem_url = dados.imagem_url
@@ -114,6 +148,11 @@ def excluir_questao(questao_id: int, db: Session) -> None:
     questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
     if not questao:
         raise HTTPException(status_code=404, detail="Questão não encontrada.")
+
+    # Bloqueia exclusão se a prova estiver PUBLICADA ou já tiver tentativas,
+    # preservando o gabarito das respostas já registradas.
+    _obter_prova_editavel(questao.prova_id, db)
+
     db.delete(questao)
     db.commit()
 

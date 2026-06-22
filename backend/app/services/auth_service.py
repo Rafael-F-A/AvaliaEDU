@@ -78,7 +78,9 @@ def autenticar_usuario(dados: schemas.UsuarioLogin, db: Session) -> dict:
         )
  
     token = criar_token(
-        data={"sub": usuario.email},
+        # API-01: inclui perfil/id nos claims (a autorização continua sendo
+        # revalidada no banco em get_usuario_atual — os claims são só conveniência).
+        data={"sub": usuario.email, "perfil": usuario.perfil, "id": usuario.id},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
  
