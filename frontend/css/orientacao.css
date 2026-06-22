@@ -1,0 +1,188 @@
+/* Orientação de uso — complementa landing-page.css */
+
+html { scroll-behavior: smooth; }
+
+.hidden { display: none !important; }
+
+/* Compensa a barra de índice sticky ao pular para uma âncora */
+.guia { scroll-margin-top: 70px; }
+
+/* Logo clicável no header herda a cor (não vira link azul) */
+.logo a h1 { margin: 0; }
+
+/* HERO desta página — um pouco mais baixo que o da home */
+.hero-orientacao { height: 60vh; min-height: 360px; }
+
+/* ÍNDICE RÁPIDO (sticky) */
+.indice {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #ffffff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  justify-content: center;
+  padding: 14px 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.indice a {
+  text-decoration: none;
+  color: #0b57c5;
+  font-weight: bold;
+  font-size: 0.95rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: 0.2s;
+}
+
+.indice a:hover { background: #eaf1fc; }
+
+/* SEÇÕES DE GUIA */
+.guia {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.guia-admin {
+  background: #f3f7ff;
+  max-width: none;
+  padding: 56px 24px;
+}
+
+.guia-admin .guia-header,
+.guia-admin .passos { max-width: 880px; margin-left: auto; margin-right: auto; }
+
+.guia-header { text-align: center; margin-bottom: 36px; }
+
+.guia-eyebrow {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b57c5;
+  background: #eaf1fc;
+  padding: 5px 14px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.guia-eyebrow-aluno { color: #1d8a3f; background: #e9f9ee; }
+.guia-eyebrow-admin { color: #a9780c; background: #fff7e0; }
+
+.guia-header h2 {
+  color: #0a2a5e;
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.guia-header p { color: #555; font-size: 1.05rem; }
+
+/* AVISO DO BLOCO ADMIN */
+.admin-aviso {
+  max-width: 880px;
+  margin: 0 auto 28px;
+  background: #fff7e0;
+  border: 1px solid #f2c230;
+  color: #7a5a07;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* PASSOS NUMERADOS */
+.passos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  counter-reset: passo;
+}
+
+.passo {
+  display: flex;
+  gap: 18px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.06);
+  transition: 0.25s;
+}
+
+.passo:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10); }
+
+.passo-num {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b57c5, #0abff7);
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(11, 87, 197, 0.30);
+}
+
+.guia-admin .passo-num { background: linear-gradient(135deg, #a9780c, #f2c230); box-shadow: 0 4px 10px rgba(169, 120, 12, 0.30); }
+
+.passo-corpo h3 { color: #0a2a5e; font-size: 1.15rem; margin-bottom: 8px; }
+.passo-corpo p { color: #555; line-height: 1.6; }
+.passo-corpo a { color: #0b57c5; font-weight: bold; }
+
+.passo-lista {
+  margin: 10px 0 0 18px;
+  color: #555;
+  line-height: 1.7;
+}
+
+/* FAQ */
+.faq { display: flex; flex-direction: column; gap: 12px; }
+
+.faq details {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 4px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.faq summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #0a2a5e;
+  padding: 16px 0;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before { content: "＋ "; color: #0b57c5; font-weight: bold; }
+.faq details[open] summary::before { content: "－ "; }
+.faq details p { color: #555; line-height: 1.6; padding: 0 0 18px; }
+.faq details a { color: #0b57c5; font-weight: bold; }
+
+/* RODAPÉ */
+.rodape {
+  background: #0a2a5e;
+  color: #d6e2f5;
+  text-align: center;
+  padding: 32px 20px;
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.rodape a { color: #f2c230; text-decoration: none; font-weight: bold; }
+.rodape a:hover { text-decoration: underline; }
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .hero-orientacao { height: auto; padding: 48px 16px; }
+  .guia { padding: 40px 16px; }
+  .passo { flex-direction: column; gap: 12px; padding: 20px; }
+  .guia-header h2 { font-size: 1.6rem; }
+}

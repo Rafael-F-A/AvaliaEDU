@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Guia de uso do AvaliaEDU — como o aluno encontra provas, faz simulados, reserva vaga presencial e emite certificados. Plataforma da SEED/Sergipe.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Como usar o AvaliaEDU — SEED Sergipe">
+  <meta property="og:description" content="Passo a passo para usar o AvaliaEDU: provas, simulados, reserva presencial e certificados digitais.">
+  <meta property="og:image" content="https://frontend-ten-beryl-38.vercel.app/og-image.png">
+  <meta property="og:url" content="https://frontend-ten-beryl-38.vercel.app/orientacao.html">
+  <title>Como usar — AvaliaEDU</title>
+  <link rel="stylesheet" href="css/landing-page.css">
+  <link rel="stylesheet" href="css/orientacao.css">
+</head>
+
+<body>
+
+  <header id="header">
+    <div class="logo">
+      <a href="index.html" aria-label="Início — AvaliaEDU SEED Sergipe" style="text-decoration:none;">
+        <h1>
+          <span class="blue" aria-hidden="true">S-</span>
+          <span class="green" aria-hidden="true">E-</span>
+          <span class="yellow" aria-hidden="true">E-</span>
+          <span class="blue2" aria-hidden="true">D</span>
+        </h1>
+      </a>
+    </div>
+
+    <nav>
+      <a href="index.html">Início</a>
+      <a href="#aluno">Para o aluno</a>
+      <a href="#admin" id="nav-admin" class="hidden">Para o administrador</a>
+      <a href="auth.html" id="nav-acesso">Login</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- HERO -->
+    <section class="hero hero-orientacao" id="inicio">
+      <div class="overlay">
+        <h2>Como usar o AvaliaEDU</h2>
+        <p>
+          Um guia rápido e direto para você aproveitar a plataforma:
+          encontrar provas, fazer simulados, reservar vaga presencial
+          e emitir seu certificado.
+        </p>
+        <div class="buttons">
+          <a href="#aluno"><button class="btn-yellow">Começar pelo guia</button></a>
+          <a href="auth.html"><button class="btn-blue">Acessar o sistema</button></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÍNDICE RÁPIDO -->
+    <nav class="indice" aria-label="Índice da página">
+      <a href="#aluno">👩‍🎓 Guia do aluno</a>
+      <a href="#admin" id="indice-admin" class="hidden">🛠️ Guia do administrador</a>
+      <a href="#duvidas">❓ Dúvidas comuns</a>
+    </nav>
+
+    <!-- ================= GUIA DO ALUNO (público) ================= -->
+    <section class="guia" id="aluno">
+      <header class="guia-header">
+        <span class="guia-eyebrow guia-eyebrow-aluno">Para o aluno</span>
+        <h2>Do login ao certificado em 6 passos</h2>
+        <p>Não precisa instalar nada — tudo acontece no navegador.</p>
+      </header>
+
+      <ol class="passos">
+        <li class="passo">
+          <div class="passo-num">1</div>
+          <div class="passo-corpo">
+            <h3>Acesse e entre na sua conta</h3>
+            <p>
+              Clique em <strong>Acessar o sistema</strong> e faça login com seu
+              e-mail e senha. No primeiro acesso, cadastre-se informando seu
+              <strong>nível</strong> (Fundamental, Médio, EJA…) e série — é por
+              isso que o sistema sabe quais provas mostrar para você.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">2</div>
+          <div class="passo-corpo">
+            <h3>Encontre suas provas e simulados</h3>
+            <p>
+              No seu painel, em <strong>Minha Área</strong>, aparecem as provas
+              <em>disponíveis para o seu nível</em>, dentro da janela de
+              inscrição. Cada card mostra o tipo (simulado ou certificação),
+              tempo limite e nota mínima.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">3</div>
+          <div class="passo-corpo">
+            <h3>Inscreva-se na prova</h3>
+            <p>
+              Clique em <strong>Inscrever</strong> na prova desejada. A inscrição
+              só funciona enquanto a janela estiver aberta. Depois de inscrito, a
+              prova fica disponível para você iniciar.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">4</div>
+          <div class="passo-corpo">
+            <h3>Faça a prova com calma</h3>
+            <p>O ambiente de prova foi feito para ser tranquilo:</p>
+            <ul class="passo-lista">
+              <li>Todas as questões carregam de uma vez — você responde na <strong>ordem que quiser</strong>.</li>
+              <li>Pode <strong>trocar uma resposta</strong> antes de finalizar.</li>
+              <li>Pode <strong>pular</strong> uma questão (o sistema confirma antes).</li>
+              <li>Fique de olho no <strong>tempo limite</strong>: ao esgotar, a prova é encerrada.</li>
+              <li>Ao terminar, clique em <strong>Finalizar</strong> para enviar.</li>
+            </ul>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">5</div>
+          <div class="passo-corpo">
+            <h3>Precisa fazer presencial? Reserve sua vaga</h3>
+            <p>
+              Para provas presenciais, reserve uma vaga em um <strong>local</strong>
+              próximo. A reserva fica <strong>ativa por 48h</strong> — se você não
+              utilizar, ela expira e a vaga volta para o sistema. Você pode
+              <strong>cancelar</strong> a qualquer momento pela sua área. Ao
+              comparecer e iniciar a prova, a reserva é confirmada.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">6</div>
+          <div class="passo-corpo">
+            <h3>Veja o resultado e baixe o certificado</h3>
+            <p>
+              Assim que finalizar, o resultado aparece na sua área. Em provas de
+              certificação aprovadas, você baixa o <strong>certificado em PDF</strong>.
+              Cada certificado tem um <strong>QR Code</strong> e um código que
+              qualquer pessoa pode conferir na página
+              <a href="index.html#validar">Validar certificado</a>.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ================= GUIA DO ADMIN (só com sessão ADMIN) ================= -->
+    <section class="guia guia-admin hidden" id="admin">
+      <div class="admin-aviso" id="admin-aviso">
+        🛠️ Você está vendo o <strong>guia do administrador</strong> porque está
+        conectado como ADMIN.
+      </div>
+
+      <header class="guia-header">
+        <span class="guia-eyebrow guia-eyebrow-admin">Para o administrador</span>
+        <h2>Gerenciando o AvaliaEDU</h2>
+        <p>Tudo a partir do painel de gestão.</p>
+      </header>
+
+      <ol class="passos">
+        <li class="passo">
+          <div class="passo-num">1</div>
+          <div class="passo-corpo">
+            <h3>Crie e publique provas</h3>
+            <p>
+              Em <strong>Provas → Nova prova</strong>, defina título, nível, série,
+              tipo (simulado ou certificação), tempo limite, nota mínima e a janela
+              de inscrição. Em <strong>Componentes curriculares</strong>, use a
+              busca para encontrar a disciplina (o código aparece ao lado, ex.:
+              <em>Geografia (GEO-FII)</em>) — o vínculo é salvo na hora. Publique
+              quando estiver pronta.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">2</div>
+          <div class="passo-corpo">
+            <h3>Cadastre as questões</h3>
+            <p>
+              Em cada prova, adicione questões e alternativas (uma correta, no
+              mínimo duas opções). Dá para acelerar com a
+              <strong>geração automática</strong> a partir de modelos de questão.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">3</div>
+          <div class="passo-corpo">
+            <h3>Mantenha os cadastros de apoio</h3>
+            <p>
+              <strong>Usuários</strong> (alunos e admins),
+              <strong>Locais</strong> de prova presencial (com capacidade e vagas)
+              e <strong>Componentes</strong> curriculares ficam em seções próprias
+              do painel.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">4</div>
+          <div class="passo-corpo">
+            <h3>Gerencie as reservas presenciais</h3>
+            <p>Na seção <strong>Reservas</strong> você tem controle total:</p>
+            <ul class="passo-lista">
+              <li><strong>Criar</strong> uma reserva para um aluno (escolhendo prova publicada e local).</li>
+              <li><strong>Editar</strong>: trocar data, status, ou mover de local (a vaga é remanejada automaticamente).</li>
+              <li><strong>Cancelar</strong> qualquer reserva — a vaga volta para o local.</li>
+              <li>Use <strong>Forçar</strong> só em exceções (ignora o limite de vagas / prova não publicada).</li>
+            </ul>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">5</div>
+          <div class="passo-corpo">
+            <h3>Acompanhe os relatórios</h3>
+            <p>
+              Em <strong>Relatórios</strong>, veja desempenho por nível, taxa de
+              aprovação, médias e certificados emitidos, com filtros por período,
+              nível e série.
+            </p>
+          </div>
+        </li>
+
+        <li class="passo">
+          <div class="passo-num">6</div>
+          <div class="passo-corpo">
+            <h3>Exporte provas em PDF</h3>
+            <p>
+              Para aplicação presencial, gere os <strong>PDFs da prova</strong> por
+              aluno direto da listagem de provas.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ================= DÚVIDAS COMUNS ================= -->
+    <section class="guia" id="duvidas">
+      <header class="guia-header">
+        <span class="guia-eyebrow">Dúvidas comuns</span>
+        <h2>Perguntas rápidas</h2>
+      </header>
+
+      <div class="faq">
+        <details>
+          <summary>Esqueci de finalizar e o tempo acabou. E agora?</summary>
+          <p>Sem problema: ao esgotar o tempo, a prova é encerrada e você consegue ver o resultado na sua área.</p>
+        </details>
+        <details>
+          <summary>Reservei uma vaga presencial mas não vou poder ir.</summary>
+          <p>Cancele a reserva na sua área para liberar a vaga. Se você não usar, ela expira sozinha em 48h.</p>
+        </details>
+        <details>
+          <summary>Como confiro se um certificado é verdadeiro?</summary>
+          <p>Use o código de validação (ou o QR Code do PDF) na página <a href="index.html#validar">Validar certificado</a>. A conferência é pública.</p>
+        </details>
+        <details>
+          <summary>Não aparece nenhuma prova para mim.</summary>
+          <p>As provas são filtradas pelo seu nível e pela janela de inscrição. Verifique se seu cadastro (nível/série) está correto e se há provas com inscrições abertas.</p>
+        </details>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="rodape">
+    <p>AvaliaEDU — Secretaria de Estado da Educação de Sergipe (SEED).</p>
+    <p>
+      <a href="index.html">Início</a> ·
+      <a href="auth.html">Acessar o sistema</a> ·
+      <a href="index.html#validar">Validar certificado</a>
+    </p>
+  </footer>
+
+  <script src="js/orientacao.js"></script>
+</body>
+</html>
