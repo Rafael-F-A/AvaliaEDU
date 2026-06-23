@@ -228,6 +228,32 @@ def listar_modelos(
     return query.order_by(models.ModeloQuestao.id).all()
 
 
+def atualizar_modelo(
+    modelo_id: int,
+    dados: schemas.ModeloQuestaoCreate,
+    db: Session,
+) -> models.ModeloQuestao:
+    """Edita um modelo de questão (substituição completa dos campos)."""
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+
+    modelo.modelo_texto  = dados.modelo_texto
+    modelo.gabarito      = dados.gabarito
+    modelo.distradores   = dados.distradores
+    modelo.variaveis     = dados.variaveis
+    modelo.nivel         = dados.nivel
+    modelo.serie         = dados.serie
+    modelo.componente_id = dados.componente_id
+    modelo.dificuldade   = dados.dificuldade
+
+    db.commit()
+    db.refresh(modelo)
+    return modelo
+
+
 def deletar_modelo(modelo_id: int, db: Session) -> None:
     modelo = db.query(models.ModeloQuestao).filter(
         models.ModeloQuestao.id == modelo_id
@@ -235,6 +261,17 @@ def deletar_modelo(modelo_id: int, db: Session) -> None:
     if not modelo:
         raise HTTPException(status_code=404, detail="Modelo não encontrado.")
     db.delete(modelo)
+    db.commit()
+
+
+def remover_imagem_modelo(modelo_id: int, db: Session) -> None:
+    """Remove a imagem associada a um modelo (zera imagem_url)."""
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+    modelo.imagem_url = None
     db.commit()
 
 def fazer_upload_imagem_modelo(modelo_id: int, arquivo, db: Session) -> str:

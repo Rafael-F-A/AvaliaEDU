@@ -1375,6 +1375,7 @@ function _renderModelos(lista) {
       <td class="td-muted">${numVars > 0 ? numVars + ' var.' : '—'}${m.imagem_url ? ' · 🖼' : ''}</td>
       <td>
         <div class="td-actions">
+          <button class="btn btn-ghost btn-sm" onclick="abrirModalEditarModelo(${m.id})">Editar</button>
           <button class="btn btn-ghost btn-sm" onclick="dispararUploadImagemModelo(${m.id})">Imagem</button>
           <button class="btn btn-ghost btn-sm btn-danger" onclick="excluirModelo(${m.id})">Excluir</button>
         </div>
@@ -1383,11 +1384,57 @@ function _renderModelos(lista) {
   }).join('');
 }
 
-/** Abre o modal de criação de modelo (não há edição — backend não expõe PUT). */
+/** Abre o modal em modo CRIAÇÃO. */
 function abrirModalNovoModelo() {
   _limparFormModelo();
+  document.getElementById('modelo-modal-titulo').textContent = 'Novo modelo de questão';
   carregarComponentesSelect('modelo-componente', null, 'Nenhum (genérico)');
+  _renderModeloImagemPreview(null, false);  // novo: sem imagem, upload só após salvar
   openModal('modal-modelo');
+}
+
+/** Abre o modal em modo EDIÇÃO, populando os campos a partir do cache _modelos. */
+function abrirModalEditarModelo(id) {
+  const m = _modelos.find(x => x.id === id);
+  if (!m) { showToast('Modelo não encontrado. Recarregue a lista.', 'warning'); return; }
+
+  _limparFormModelo();
+  document.getElementById('modelo-modal-titulo').textContent = 'Editar modelo de questão';
+  document.getElementById('modelo-id').value          = m.id;
+  document.getElementById('modelo-texto').value        = m.modelo_texto || '';
+  document.getElementById('modelo-gabarito').value     = m.gabarito || '';
+  const dist = Array.isArray(m.distradores) ? m.distradores : [];
+  document.getElementById('modelo-distrator-1').value  = dist[0] || '';
+  document.getElementById('modelo-distrator-2').value  = dist[1] || '';
+  document.getElementById('modelo-distrator-3').value  = dist[2] || '';
+  document.getElementById('modelo-nivel').value        = m.nivel || '';
+  document.getElementById('modelo-dificuldade').value  = m.dificuldade || 'MEDIO';
+  document.getElementById('modelo-serie').value        = m.serie || '';
+  document.getElementById('modelo-variaveis').value    =
+    m.variaveis ? JSON.stringify(m.variaveis) : '';
+  carregarComponentesSelect('modelo-componente', m.componente_id || null, 'Nenhum (genérico)');
+
+  _renderModeloImagemPreview(m.imagem_url || null, true);  // edição: upload liberado
+  openModal('modal-modelo');
+}
+
+/** Mostra/oculta o preview da imagem do modelo no modal.
+ *  @param {string|null} url  imagem atual (ou null)
+ *  @param {boolean} podeUpload  true em edição (modelo já tem id) */
+function _renderModeloImagemPreview(url, podeUpload) {
+  const wrap = document.getElementById('modelo-imagem-preview-wrap');
+  const img  = document.getElementById('modelo-imagem-preview');
+  const btn  = document.getElementById('modelo-btn-imagem');
+  const hint = document.getElementById('modelo-imagem-hint');
+  if (url) {
+    img.src = url;
+    wrap.style.display = 'flex';
+  } else {
+    img.src = '';
+    wrap.style.display = 'none';
+  }
+  btn.style.display  = podeUpload ? '' : 'none';
+  hint.style.display = podeUpload ? 'none' : '';
 }
 
 /** Salva um novo modelo de questão via POST /geracao/modelos. */
@@ -1428,14 +1475,47 @@ async function salvarModelo() {
     dificuldade   : document.getElementById('modelo-dificuldade').value || 'MEDIO',
   };
 
+  const id = document.getElementById('modelo-id').value;
+
   try {
     setLoading(true);
-    await apiFetch('/geracao/modelos', { method: 'POST', body: JSON.stringify(corpo) });
-    showToast('Modelo de questão criado!', 'success');
+    if (id) {
+      await apiFetch(`/geracao/modelos/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
+      showToast('Modelo atualizado!', 'success');
+    } else {
+      await apiFetch('/geracao/modelos', { method: 'POST', body: JSON.stringify(corpo) });
+      showToast('Modelo de questão criado!', 'success');
+    }
     closeModal('modal-modelo');
     carregarModelos();
   } catch (err) {
     showToast(err.message || 'Erro ao salvar modelo.', 'danger');
+  } finally {
+    setLoading(false);
+  }
+}
+
+/** Dispara o upload de imagem para o modelo aberto no modal (modo edição). */
+function dispararUploadImagemModeloModal() {
+  const id = Number(document.getElementById('modelo-id').value);
+  if (!id) { showToast('Salve o modelo primeiro para anexar imagem.', 'warning'); return; }
+  dispararUploadImagemModelo(id);
+}
+
+/** Remove a imagem do modelo aberto no modal (DELETE) e atualiza o preview. */
+async function removerImagemModelo() {
+  const id = Number(document.getElementById('modelo-id').value);
+  if (!id) return;
+  try {
+    setLoading(true);
+    await apiFetch(`/geracao/modelos/${id}/imagem`, { method: 'DELETE' });
+    const m = _modelos.find(x => x.id === id);
+    if (m) m.imagem_url = null;
+    _renderModeloImagemPreview(null, true);
+    showToast('Imagem removida.', 'success');
+    carregarModelos();
+  } catch (err) {
+    showToast(err.message || 'Erro ao remover imagem.', 'danger');
   } finally {
     setLoading(false);
   }
@@ -1478,10 +1558,17 @@ async function _uploadImagemSelecionada(event) {
 
   try {
     setLoading(true);
-    await apiFetch(`/geracao/modelos/${_modeloUploadAtivo}/imagem`, {
+    const res = await apiFetch(`/geracao/modelos/${_modeloUploadAtivo}/imagem`, {
       method: 'POST',
       body: formData,
     });
+    const novaUrl = res?.imagem_url || null;
+    const m = _modelos.find(x => x.id === _modeloUploadAtivo);
+    if (m && novaUrl) m.imagem_url = novaUrl;
+    // Se o modal estiver editando este mesmo modelo, atualiza o preview na hora.
+    if (novaUrl && Number(document.getElementById('modelo-id')?.value) === _modeloUploadAtivo) {
+      _renderModeloImagemPreview(novaUrl, true);
+    }
     showToast('Imagem enviada!', 'success');
     carregarModelos();
   } catch (err) {
@@ -1493,12 +1580,13 @@ async function _uploadImagemSelecionada(event) {
 }
 
 function _limparFormModelo() {
-  ['modelo-texto', 'modelo-gabarito', 'modelo-distrator-1', 'modelo-distrator-2',
+  ['modelo-id', 'modelo-texto', 'modelo-gabarito', 'modelo-distrator-1', 'modelo-distrator-2',
    'modelo-distrator-3', 'modelo-serie', 'modelo-variaveis'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('modelo-nivel').value       = '';
   document.getElementById('modelo-dificuldade').value = 'MEDIO';
+  _renderModeloImagemPreview(null, false);
 }
 
 /* ─────────────────────────────────────────

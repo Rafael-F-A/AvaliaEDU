@@ -1387,10 +1387,11 @@
 <div class="modal-overlay" id="modal-modelo">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <h2 class="modal-title">Novo modelo de questão</h2>
+      <h2 class="modal-title" id="modelo-modal-titulo">Novo modelo de questão</h2>
       <button class="modal-close" data-close-modal="modal-modelo">✕</button>
     </div>
     <div class="modal-body">
+      <input type="hidden" id="modelo-id">
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label required" for="modelo-texto">Enunciado (template)</label>
         <textarea class="form-textarea" id="modelo-texto" rows="3"
@@ -1453,15 +1454,29 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label" for="modelo-variaveis">Variáveis (JSON opcional)</label>
         <textarea class="form-textarea" id="modelo-variaveis" rows="2"
           placeholder='Ex: {"a": [2, 3, 4], "b": [10, 20, 30]}'></textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Imagem do modelo (opcional)</label>
+        <div id="modelo-imagem-preview-wrap" style="display:none; align-items:center; gap:12px; margin-bottom:8px;">
+          <img id="modelo-imagem-preview" src="" alt="Imagem do modelo"
+            style="max-height:80px; border-radius:8px; border:1px solid var(--c-border);">
+          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--c-danger);"
+            onclick="removerImagemModelo()">Remover imagem</button>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="modelo-btn-imagem"
+          onclick="dispararUploadImagemModeloModal()">🖼 Adicionar / trocar imagem</button>
+        <p id="modelo-imagem-hint" style="font-size:12px; color:var(--c-text-muted); margin:6px 0 0; display:none;">
+          Salve o modelo primeiro para anexar uma imagem.
+        </p>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close-modal="modal-modelo">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarModelo()">Salvar modelo</button>
+      <button class="btn btn-primary" id="btn-salvar-modelo" onclick="salvarModelo()">Salvar modelo</button>
     </div>
   </div>
 </div>

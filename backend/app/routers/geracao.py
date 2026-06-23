@@ -77,6 +77,20 @@ def listar_modelos(
     return geracao_service.listar_modelos(db, nivel, dificuldade, componente_id)
 
 
+@router.put(
+    "/modelos/{modelo_id}",
+    response_model=schemas.ModeloQuestaoResponse,
+    summary="Edita um modelo de questão",
+)
+def atualizar_modelo(
+    modelo_id : int,
+    dados     : schemas.ModeloQuestaoCreate,
+    db        : Session = Depends(get_db),
+    admin     : models.Usuario = Depends(get_usuario_admin),
+):
+    return geracao_service.atualizar_modelo(modelo_id, dados, db)
+
+
 @router.delete(
     "/modelos/{modelo_id}",
     status_code=204,
@@ -88,6 +102,19 @@ def deletar_modelo(
     admin     : models.Usuario = Depends(get_usuario_admin),
 ):
     geracao_service.deletar_modelo(modelo_id, db)
+
+
+@router.delete(
+    "/modelos/{modelo_id}/imagem",
+    status_code=204,
+    summary="Remove a imagem de um modelo de questão",
+)
+def remover_imagem_modelo(
+    modelo_id : int,
+    db        : Session = Depends(get_db),
+    admin     : models.Usuario = Depends(get_usuario_admin),
+):
+    geracao_service.remover_imagem_modelo(modelo_id, db)
 
 @router.post(
     "/modelos/{modelo_id}/imagem",
