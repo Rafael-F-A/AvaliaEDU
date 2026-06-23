@@ -221,6 +221,7 @@ class ModeloQuestao(Base):
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
     imagem_url = Column(String(500), nullable=True)
+    gabarito_imagem_url = Column(String(500), nullable=True)  # imagem da alternativa correta
 
 class ComponenteCurricular(Base):
     __tablename__ = "componentes_curriculares"

@@ -34,6 +34,13 @@ def upload_imagem_modelo(caminho_local: str, modelo_id: int, extensao: str = "pn
     return _upload("questoes", caminho_local, nome_destino, expires_in=604800)
 
 
+def upload_imagem_modelo_slot(caminho_local: str, modelo_id: int, slot: str, extensao: str = "png") -> str:
+    """Imagem de uma alternativa do modelo (gabarito ou distrator_N).
+    Caminho: modelos/{modelo_id}/{slot}.{extensao}."""
+    nome_destino = f"modelos/{modelo_id}/{slot}.{extensao}"
+    return _upload("questoes", caminho_local, nome_destino, expires_in=604800)
+
+
 # NOVO: imagem de alternativa individual
 def upload_imagem_alternativa(caminho_local: str, alternativa_id: int, extensao: str = "png") -> str:
     """

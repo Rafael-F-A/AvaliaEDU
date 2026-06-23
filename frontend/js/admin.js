@@ -739,7 +739,7 @@ async function usarModeloNaQuestao() {
 
     document.getElementById('alternativas-container').innerHTML = '';
     _altCounter = 0;
-    (m.alternativas || []).forEach(a => adicionarAlternativa(a.texto, a.is_correta));
+    (m.alternativas || []).forEach(a => adicionarAlternativa(a.texto, a.is_correta, null, a.imagem_url || null));
     while (document.querySelectorAll('.alt-row').length < 2) adicionarAlternativa();
 
     await carregarComponentesSelect('questao-componente', m.componente_id ?? null);
@@ -1377,6 +1377,10 @@ async function carregarModelos() {
   }
 }
 
+/** US11/E — imagens das alternativas do modelo no modal (slot -> url http ou data URL). */
+let _modeloImgs = {};
+let _modeloImgSlotAtivo = null;
+
 function _renderModelos(lista) {
   const tbody = document.getElementById('modelos-tbody');
 
@@ -1399,7 +1403,6 @@ function _renderModelos(lista) {
       <td>
         <div class="td-actions">
           <button class="btn btn-ghost btn-sm" onclick="abrirModalEditarModelo(${m.id})">Editar</button>
-          <button class="btn btn-ghost btn-sm" onclick="dispararUploadImagemModelo(${m.id})">Imagem</button>
           <button class="btn btn-ghost btn-sm btn-danger" onclick="excluirModelo(${m.id})">Excluir</button>
         </div>
       </td>
@@ -1412,7 +1415,6 @@ function abrirModalNovoModelo() {
   _limparFormModelo();
   document.getElementById('modelo-modal-titulo').textContent = 'Novo modelo de questão';
   carregarComponentesSelect('modelo-componente', null, 'Nenhum (genérico)');
-  _renderModeloImagemPreview(null, false);  // novo: sem imagem, upload só após salvar
   openModal('modal-modelo');
 }
 
@@ -1427,9 +1429,9 @@ function abrirModalEditarModelo(id) {
   document.getElementById('modelo-texto').value        = m.modelo_texto || '';
   document.getElementById('modelo-gabarito').value     = m.gabarito || '';
   const dist = Array.isArray(m.distradores) ? m.distradores : [];
-  document.getElementById('modelo-distrator-1').value  = dist[0] || '';
-  document.getElementById('modelo-distrator-2').value  = dist[1] || '';
-  document.getElementById('modelo-distrator-3').value  = dist[2] || '';
+  document.getElementById('modelo-distrator-1').value  = dist[0]?.texto || '';
+  document.getElementById('modelo-distrator-2').value  = dist[1]?.texto || '';
+  document.getElementById('modelo-distrator-3').value  = dist[2]?.texto || '';
   document.getElementById('modelo-nivel').value        = m.nivel || '';
   document.getElementById('modelo-dificuldade').value  = m.dificuldade || 'MEDIO';
   document.getElementById('modelo-serie').value        = m.serie || '';
@@ -1437,30 +1439,69 @@ function abrirModalEditarModelo(id) {
     m.variaveis ? JSON.stringify(m.variaveis) : '';
   carregarComponentesSelect('modelo-componente', m.componente_id || null, 'Nenhum (genérico)');
 
-  _renderModeloImagemPreview(m.imagem_url || null, true);  // edição: upload liberado
+  // Imagens das alternativas (enunciado, gabarito, distratores)
+  _modeloImgs = {};
+  if (m.imagem_url) _modeloImgs.enunciado = m.imagem_url;
+  if (m.gabarito_imagem_url) _modeloImgs.gabarito = m.gabarito_imagem_url;
+  dist.forEach((d, i) => { if (d?.imagem_url) _modeloImgs['distrator_' + i] = d.imagem_url; });
+  _renderTodosImgModelo();
+
   openModal('modal-modelo');
 }
 
-/** Mostra/oculta o preview da imagem do modelo no modal.
- *  @param {string|null} url  imagem atual (ou null)
- *  @param {boolean} podeUpload  true em edição (modelo já tem id) */
-function _renderModeloImagemPreview(url, podeUpload) {
-  const wrap = document.getElementById('modelo-imagem-preview-wrap');
-  const img  = document.getElementById('modelo-imagem-preview');
-  const btn  = document.getElementById('modelo-btn-imagem');
-  const hint = document.getElementById('modelo-imagem-hint');
-  if (url) {
-    img.src = url;
-    wrap.style.display = 'flex';
-  } else {
-    img.src = '';
-    wrap.style.display = 'none';
-  }
-  btn.style.display  = podeUpload ? '' : 'none';
-  hint.style.display = podeUpload ? 'none' : '';
+/* ── Imagens das alternativas do modelo (esquema unificado, salvas ao salvar) ── */
+
+/** Abre o seletor de arquivo para um slot (enunciado / gabarito / distrator_N). */
+function dispararImgModelo(slot) {
+  _modeloImgSlotAtivo = slot;
+  document.getElementById('modelo-img-input').click();
 }
 
-/** Salva um novo modelo de questão via POST /geracao/modelos. */
+/** Guarda a imagem escolhida (data URL) no slot — enviada ao salvar. */
+async function _onImgModelo(event) {
+  const arquivo = event.target.files[0];
+  event.target.value = '';
+  const slot = _modeloImgSlotAtivo;
+  if (!arquivo || !slot) return;
+  try {
+    _modeloImgs[slot] = await _lerArquivoImagem(arquivo);
+    _renderImgModelo(slot);
+  } catch (err) {
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
+  } finally {
+    _modeloImgSlotAtivo = null;
+  }
+}
+
+/** Remove a imagem de um slot (efetivada ao salvar). */
+function removerImgModelo(slot) {
+  delete _modeloImgs[slot];
+  _renderImgModelo(slot);
+}
+
+/** Sincroniza o preview de um slot com _modeloImgs. */
+function _renderImgModelo(slot) {
+  const box = document.querySelector(`.modelo-img[data-slot="${slot}"]`);
+  if (!box) return;
+  const url = _modeloImgs[slot];
+  const img = box.querySelector('.modelo-img-preview');
+  if (url) { img.src = url; box.style.display = 'flex'; }
+  else { img.src = ''; box.style.display = 'none'; }
+}
+
+function _renderTodosImgModelo() {
+  ['enunciado', 'gabarito', 'distrator_0', 'distrator_1', 'distrator_2'].forEach(_renderImgModelo);
+}
+
+/** Divide a imagem de um slot em { imagem_url } (http) ou { imagem_base64 } (data URL). */
+function _imgPayloadModelo(img) {
+  if (!img) return { imagem_url: null, imagem_base64: null };
+  return img.startsWith('data:')
+    ? { imagem_url: null, imagem_base64: img }
+    : { imagem_url: img, imagem_base64: null };
+}
+
+/** Salva o modelo (POST novo / PUT edição), com imagens das alternativas. */
 async function salvarModelo() {
   const modeloTexto = document.getElementById('modelo-texto').value.trim();
   const gabarito     = document.getElementById('modelo-gabarito').value.trim();
@@ -1470,10 +1511,6 @@ async function salvarModelo() {
     showToast('Preencha o enunciado, o gabarito e o nível.', 'warning');
     return;
   }
-
-  const distradores = ['modelo-distrator-1', 'modelo-distrator-2', 'modelo-distrator-3']
-    .map(id => document.getElementById(id).value.trim())
-    .filter(Boolean);
 
   let variaveis = null;
   const variaveisRaw = document.getElementById('modelo-variaveis').value.trim();
@@ -1486,6 +1523,18 @@ async function salvarModelo() {
     }
   }
 
+  // Distratores: texto + imagem (pula os totalmente vazios)
+  const distradores = [];
+  for (let i = 0; i < 3; i++) {
+    const texto = document.getElementById('modelo-distrator-' + (i + 1)).value.trim();
+    const img = _modeloImgs['distrator_' + i];
+    if (!texto && !img) continue;
+    distradores.push({ texto, ..._imgPayloadModelo(img) });
+  }
+
+  const enun = _imgPayloadModelo(_modeloImgs.enunciado);
+  const gab  = _imgPayloadModelo(_modeloImgs.gabarito);
+
   const corpo = {
     modelo_texto  : modeloTexto,
     gabarito,
@@ -1496,6 +1545,10 @@ async function salvarModelo() {
     componente_id : document.getElementById('modelo-componente').value
                       ? Number(document.getElementById('modelo-componente').value) : null,
     dificuldade   : document.getElementById('modelo-dificuldade').value || 'MEDIO',
+    imagem_url             : enun.imagem_url,
+    imagem_base64          : enun.imagem_base64,
+    gabarito_imagem_url    : gab.imagem_url,
+    gabarito_imagem_base64 : gab.imagem_base64,
   };
 
   const id = document.getElementById('modelo-id').value;
@@ -1513,32 +1566,6 @@ async function salvarModelo() {
     carregarModelos();
   } catch (err) {
     showToast(err.message || 'Erro ao salvar modelo.', 'danger');
-  } finally {
-    setLoading(false);
-  }
-}
-
-/** Dispara o upload de imagem para o modelo aberto no modal (modo edição). */
-function dispararUploadImagemModeloModal() {
-  const id = Number(document.getElementById('modelo-id').value);
-  if (!id) { showToast('Salve o modelo primeiro para anexar imagem.', 'warning'); return; }
-  dispararUploadImagemModelo(id);
-}
-
-/** Remove a imagem do modelo aberto no modal (DELETE) e atualiza o preview. */
-async function removerImagemModelo() {
-  const id = Number(document.getElementById('modelo-id').value);
-  if (!id) return;
-  try {
-    setLoading(true);
-    await apiFetch(`/geracao/modelos/${id}/imagem`, { method: 'DELETE' });
-    const m = _modelos.find(x => x.id === id);
-    if (m) m.imagem_url = null;
-    _renderModeloImagemPreview(null, true);
-    showToast('Imagem removida.', 'success');
-    carregarModelos();
-  } catch (err) {
-    showToast(err.message || 'Erro ao remover imagem.', 'danger');
   } finally {
     setLoading(false);
   }
@@ -1564,44 +1591,6 @@ function excluirModelo(id) {
   );
 }
 
-/** Abre o seletor de arquivo para anexar uma imagem a um modelo (input oculto). */
-function dispararUploadImagemModelo(modeloId) {
-  _modeloUploadAtivo = modeloId;
-  document.getElementById('modelo-imagem-input').click();
-}
-
-/** Envia a imagem escolhida via POST /geracao/modelos/{id}/imagem (multipart). */
-async function _uploadImagemSelecionada(event) {
-  const arquivo = event.target.files[0];
-  event.target.value = ''; // permite selecionar o mesmo arquivo novamente depois
-  if (!arquivo || !_modeloUploadAtivo) return;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
-  try {
-    setLoading(true);
-    const res = await apiFetch(`/geracao/modelos/${_modeloUploadAtivo}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    const novaUrl = res?.imagem_url || null;
-    const m = _modelos.find(x => x.id === _modeloUploadAtivo);
-    if (m && novaUrl) m.imagem_url = novaUrl;
-    // Se o modal estiver editando este mesmo modelo, atualiza o preview na hora.
-    if (novaUrl && Number(document.getElementById('modelo-id')?.value) === _modeloUploadAtivo) {
-      _renderModeloImagemPreview(novaUrl, true);
-    }
-    showToast('Imagem enviada!', 'success');
-    carregarModelos();
-  } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
-  } finally {
-    setLoading(false);
-    _modeloUploadAtivo = null;
-  }
-}
-
 function _limparFormModelo() {
   ['modelo-id', 'modelo-texto', 'modelo-gabarito', 'modelo-distrator-1', 'modelo-distrator-2',
    'modelo-distrator-3', 'modelo-serie', 'modelo-variaveis'].forEach(id => {
@@ -1609,7 +1598,8 @@ function _limparFormModelo() {
   });
   document.getElementById('modelo-nivel').value       = '';
   document.getElementById('modelo-dificuldade').value = 'MEDIO';
-  _renderModeloImagemPreview(null, false);
+  _modeloImgs = {};
+  _renderTodosImgModelo();
 }
 
 /* ─────────────────────────────────────────
