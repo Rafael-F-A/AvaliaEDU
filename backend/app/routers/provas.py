@@ -88,6 +88,16 @@ def publicar_prova(
     return prova_service.publicar_prova(prova_id, db)
 
 
+@router.patch("/{prova_id}/rascunho", response_model=schemas.ProvaResponse)
+def voltar_prova_para_rascunho(
+    prova_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(get_usuario_admin),
+):
+    """Reverte uma prova PUBLICADA → RASCUNHO para liberar a edição de questões."""
+    return prova_service.voltar_para_rascunho(prova_id, db)
+
+
 @router.delete("/{prova_id}", response_model=schemas.MensagemResponse)
 def deletar_prova(
     prova_id: int,

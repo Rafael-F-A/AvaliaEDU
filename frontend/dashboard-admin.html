@@ -90,6 +90,14 @@
             <span>Relatórios</span>
           </a>
         </li>
+        <li>
+          <a href="#" data-section="minha-area" class="nav-link">
+            <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+            <span>Minha área</span>
+          </a>
+        </li>
       </ul>
     </nav>
 
@@ -708,6 +716,40 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- ─── SEÇÃO: MINHA ÁREA ─── -->
+    <section id="section-minha-area" class="dash-section hidden">
+      <header class="page-header">
+        <div class="page-header-left">
+          <h1 class="page-title">Minha área</h1>
+          <p class="page-subtitle">Dados da sua conta de administrador.</p>
+        </div>
+        <div class="page-header-actions">
+          <div class="user-avatar">?</div>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div class="card" style="max-width:560px;">
+          <div style="display:flex; align-items:center; gap:16px; margin-bottom:22px;">
+            <div class="user-avatar" id="area-avatar-big"
+                 style="width:64px;height:64px;font-size:22px;flex-shrink:0;">?</div>
+            <div>
+              <div id="area-nome" style="font-size:18px; font-weight:600; color:var(--c-text);">—</div>
+              <div id="area-perfil" style="font-size:13px; color:var(--c-text-muted); margin-top:2px;">Administrador</div>
+            </div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">E-mail</label>
+            <input class="form-input" type="email" id="area-email" readonly
+                   style="background:var(--c-bg); cursor:default; color:var(--c-text-muted);">
+          </div>
+          <p style="font-size:13px; color:var(--c-text-muted); margin:16px 0 0;">
+            Para encerrar a sessão, use o botão <strong>Sair</strong> no menu lateral.
+          </p>
+        </div>
       </div>
     </section>
 

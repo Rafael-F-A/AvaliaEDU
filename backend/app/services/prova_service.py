@@ -269,3 +269,42 @@ def publicar_prova(prova_id: int, db: Session) -> models.Prova:
     db.commit()
     db.refresh(prova)
     return prova
+
+
+def voltar_para_rascunho(prova_id: int, db: Session) -> models.Prova:
+    """Reverte uma prova PUBLICADA para RASCUNHO, liberando a edição de questões.
+
+    Bloqueia se houver alunos com simulado EM_ANDAMENTO/PAUSADO (mesma proteção
+    de editar_prova) para não corromper tentativas ativas. Tentativas apenas
+    INSCRITO (ex.: PDFs já gerados) ou CONCLUIDA não impedem o retorno."""
+    prova = db.query(models.Prova).filter(
+        models.Prova.id == prova_id,
+        models.Prova.deleted == False,
+    ).first()
+
+    if not prova:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prova não encontrada."
+        )
+
+    if prova.status != "PUBLICADA":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Apenas provas publicadas podem voltar para rascunho.",
+        )
+
+    tentativa_ativa = db.query(models.Tentativa).filter(
+        models.Tentativa.prova_id == prova_id,
+        models.Tentativa.status.in_(["EM_ANDAMENTO", "PAUSADO"]),
+    ).first()
+
+    if tentativa_ativa:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Há alunos realizando esta prova; não é possível voltar para rascunho agora.",
+        )
+
+    prova.status = "RASCUNHO"
+    db.commit()
+    db.refresh(prova)
+    return prova
