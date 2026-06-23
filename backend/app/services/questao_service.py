@@ -1,4 +1,6 @@
 import os
+import base64
+import binascii
 import tempfile
 from typing import Optional
 
@@ -11,6 +13,43 @@ from app.utils.storage import upload_imagem_questao, upload_imagem_alternativa
 EXTENSOES_PERMITIDAS = {"image/jpeg", "image/png", "image/webp"}
 TAMANHO_MAXIMO = 5 * 1024 * 1024  # 5 MB
 
+
+def _upload_base64(b64: str, upload_fn, owner_id: int) -> str:
+    """Decodifica uma imagem (data URL ou base64 puro), valida e sobe ao storage.
+
+    Usado para anexar imagem ao CRIAR/EDITAR a questão — sem exigir um upload
+    separado depois de salvar. Retorna a URL assinada.
+    """
+    if b64.startswith("data:"):
+        try:
+            header, dados = b64.split(",", 1)
+            mime = header.split(";")[0][len("data:"):]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Imagem base64 inválida.")
+    else:
+        dados = b64
+        mime = "image/png"
+
+    if mime not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=400, detail="Formato inválido. Use PNG, JPG ou WEBP.")
+
+    try:
+        raw = base64.b64decode(dados, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=400, detail="Imagem base64 inválida.")
+
+    if len(raw) > TAMANHO_MAXIMO:
+        raise HTTPException(status_code=400, detail="Imagem muito grande. Máximo 5MB.")
+
+    ext = mime.split("/")[1]
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = tmp.name
+    try:
+        return upload_fn(tmp_path, owner_id, ext)
+    finally:
+        os.unlink(tmp_path)
+
 # Validação de alternativas
 
 def _validar_alternativas(alternativas: list) -> None:
@@ -22,7 +61,9 @@ def _validar_alternativas(alternativas: list) -> None:
 
     textos_vazios = [
         a for a in alternativas
-        if (not a.texto or not a.texto.strip()) and not a.imagem_url
+        if (not a.texto or not a.texto.strip())
+        and not a.imagem_url
+        and not getattr(a, "imagem_base64", None)
     ]
     if textos_vazios:
         raise HTTPException(
@@ -91,14 +132,28 @@ def criar_questao(dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
     db.add(nova_questao)
     db.flush()
 
+    # Imagem anexada antes de salvar (base64) — sobe agora que a questão tem id.
+    if dados.imagem_base64:
+        nova_questao.imagem_url = _upload_base64(
+            dados.imagem_base64, upload_imagem_questao, nova_questao.id
+        )
+
+    alt_objs = []
     for idx, alt in enumerate(dados.alternativas):
-        db.add(models.Alternativa(
+        a = models.Alternativa(
             texto=alt.texto.strip() if alt.texto else "",
             questao_id=nova_questao.id,
             is_correta=alt.is_correta,
             ordem=alt.ordem if alt.ordem is not None else idx,
-            imagem_url=alt.imagem_url,   # NOVO
-        ))
+            imagem_url=alt.imagem_url,
+        )
+        db.add(a)
+        alt_objs.append((a, alt))
+    db.flush()  # garante os ids das alternativas
+
+    for a, alt in alt_objs:
+        if getattr(alt, "imagem_base64", None):
+            a.imagem_url = _upload_base64(alt.imagem_base64, upload_imagem_alternativa, a.id)
 
     db.commit()
     db.refresh(nova_questao)
@@ -125,19 +180,31 @@ def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -
     questao.enunciado = dados.enunciado
     questao.nivel_dificuldade = dados.nivel_dificuldade
     questao.imagem_url = dados.imagem_url
+    if dados.imagem_base64:
+        questao.imagem_url = _upload_base64(
+            dados.imagem_base64, upload_imagem_questao, questao.id
+        )
 
     db.query(models.Alternativa).filter(
         models.Alternativa.questao_id == questao_id
     ).delete()
 
+    alt_objs = []
     for idx, alt in enumerate(dados.alternativas):
-        db.add(models.Alternativa(
+        a = models.Alternativa(
             texto=alt.texto.strip() if alt.texto else "",
             questao_id=questao.id,
             is_correta=alt.is_correta,
             ordem=alt.ordem if alt.ordem is not None else idx,
-            imagem_url=alt.imagem_url,   # NOVO
-        ))
+            imagem_url=alt.imagem_url,
+        )
+        db.add(a)
+        alt_objs.append((a, alt))
+    db.flush()  # garante os ids das alternativas
+
+    for a, alt in alt_objs:
+        if getattr(alt, "imagem_base64", None):
+            a.imagem_url = _upload_base64(alt.imagem_base64, upload_imagem_alternativa, a.id)
 
     db.commit()
     db.refresh(questao)

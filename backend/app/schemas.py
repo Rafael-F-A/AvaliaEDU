@@ -189,6 +189,7 @@ class AlternativaCreate(BaseModel):
     is_correta: bool = False
     ordem: Optional[int] = None
     imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None  # imagem anexada antes de salvar (data URL/base64)
 
 class AlternativaResponse(BaseModel):
     id: int
@@ -229,6 +230,7 @@ class QuestaoCreate(BaseModel):
     nivel_dificuldade: Optional[str] = "MEDIO"
     alternativas: list[AlternativaCreate]
     imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None  # imagem anexada antes de salvar (data URL/base64)
 
 class QuestaoResponse(BaseModel):
     id: int

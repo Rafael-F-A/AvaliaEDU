@@ -772,8 +772,7 @@ function adicionarAlternativa(texto = '', isCorreta = false, altId = null, image
       oninput="this.closest('.alt-row').querySelector('.alt-correta').disabled = false;">
     <button type="button" class="btn btn-ghost btn-sm alt-btn-imagem"
       onclick="dispararUploadImagemAlternativa(this)"
-      title="${altId ? 'Anexar imagem' : 'Salve a questão antes de anexar imagem nesta alternativa'}"
-      ${altId ? '' : 'disabled'}
+      title="Anexar imagem"
       style="padding:4px 6px; font-size:14px; line-height:1;">🖼</button>
     <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--c-text-muted);"
       title="Marcar como correta">
@@ -821,13 +820,16 @@ async function salvarQuestao() {
     const texto     = row.querySelector('.alt-texto').value.trim();
     const isCorreta = row.querySelector('.alt-correta').checked;
     if (isCorreta) corretaCount++;
+    // A imagem fica guardada no cliente como data URL (anexada antes de salvar)
+    // ou como URL http (imagem já existente, em edição).
+    const img = row.dataset.imagemUrl || '';
+    const ehBase64 = img.startsWith('data:');
     alternativas.push({
       texto,
       is_correta: isCorreta,
       ordem: i + 1,
-      // Preserva a imagem já enviada: o PUT recria as alternativas do zero,
-      // então precisamos reenviar a URL ou ela se perde na edição.
-      imagem_url: row.dataset.imagemUrl || null,
+      imagem_url:    ehBase64 ? null : (img || null),
+      imagem_base64: ehBase64 ? img  : null,
     });
   });
 
@@ -835,8 +837,8 @@ async function salvarQuestao() {
   if (alternativas.length < 2) {
     showToast('Mínimo de 2 alternativas.', 'warning'); return;
   }
-  if (alternativas.some(a => !a.texto)) {
-    showToast('Nenhuma alternativa pode ter texto vazio.', 'warning'); return;
+  if (alternativas.some(a => !a.texto && !a.imagem_url && !a.imagem_base64)) {
+    showToast('Cada alternativa precisa de texto ou imagem.', 'warning'); return;
   }
   if (corretaCount === 0) {
     showToast('Marque exatamente 1 alternativa como correta.', 'warning'); return;
@@ -845,13 +847,16 @@ async function salvarQuestao() {
     showToast('Apenas 1 alternativa pode ser a correta.', 'warning'); return;
   }
 
+  const qImg = _questaoImagemAtual || '';
+  const qEhBase64 = qImg.startsWith('data:');
   const corpo = {
     enunciado,
     prova_id: Number(provaId),
     nivel_dificuldade: dificuldade,
     alternativas,
     componente_id: Number(document.getElementById('questao-componente').value) || null,
-    imagem_url: _questaoImagemAtual || null,
+    imagem_url:    qEhBase64 ? null : (qImg || null),
+    imagem_base64: qEhBase64 ? qImg : null,
   };
 
   try {
@@ -859,14 +864,11 @@ async function salvarQuestao() {
     if (id) {
       await apiFetch(`/questoes/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
       showToast('Questão atualizada!', 'success');
-      closeModal('modal-questao');
     } else {
-      const criada = await apiFetch('/questoes', { method: 'POST', body: JSON.stringify(corpo) });
-      showToast('Questão criada! Agora você já pode anexar imagens nela.', 'success', 5000);
-      // Mantém o modal aberto, em modo edição: upload de imagem exige
-      // que a questão/alternativa já tenha um id, que só existe após o POST.
-      _aplicarResultadoQuestaoSalva(criada);
+      await apiFetch('/questoes', { method: 'POST', body: JSON.stringify(corpo) });
+      showToast('Questão criada!', 'success');
     }
+    closeModal('modal-questao');
     carregarQuestoes(_provaAtiva.id);
   } catch (err) {
     showToast(err.message || 'Erro ao salvar questão.', 'danger');
@@ -915,118 +917,90 @@ function _limparFormQuestao() {
    8B. UPLOAD DE IMAGEM — QUESTÃO E ALTERNATIVA
    ─────────────────────────────────────── */
 
-/** Abre o seletor de arquivo para a imagem do enunciado (exige questão já salva). */
+/** Lê um arquivo de imagem como data URL, validando tipo e tamanho (5MB). */
+function _lerArquivoImagem(file) {
+  return new Promise((resolve, reject) => {
+    const tipos = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!tipos.includes(file.type)) { reject(new Error('Formato inválido. Use PNG, JPG ou WEBP.')); return; }
+    if (file.size > 5 * 1024 * 1024) { reject(new Error('Imagem muito grande. Máximo 5MB.')); return; }
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Abre o seletor de arquivo para a imagem do enunciado. */
 function dispararUploadImagemQuestao() {
-  const questaoId = document.getElementById('questao-id').value;
-  if (!questaoId) {
-    showToast('Salve a questão antes de anexar uma imagem.', 'warning');
-    return;
-  }
   document.getElementById('questao-imagem-input').click();
 }
 
-/** Envia a imagem escolhida via POST /questoes/{id}/imagem (multipart). */
+/** Guarda a imagem do enunciado no cliente (data URL) — enviada ao salvar. */
 async function _uploadImagemQuestaoSelecionada(event) {
   const arquivo = event.target.files[0];
   event.target.value = '';
-  const questaoId = document.getElementById('questao-id').value;
-  if (!arquivo || !questaoId) return;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
+  if (!arquivo) return;
   try {
-    setLoading(true);
-    const resp = await apiFetch(`/questoes/${questaoId}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    _questaoImagemAtual = resp.imagem_url;
+    _questaoImagemAtual = await _lerArquivoImagem(arquivo);
     _renderImagemQuestao();
-    showToast('Imagem da questão enviada!', 'success');
   } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
-  } finally {
-    setLoading(false);
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
   }
 }
 
-/** Atualiza a miniatura e o texto do botão conforme _questaoImagemAtual. */
+/** Remove a imagem do enunciado (efetivada ao salvar a questão). */
+function removerImagemQuestao() {
+  _questaoImagemAtual = null;
+  _renderImagemQuestao();
+}
+
+/** Atualiza a miniatura, o botão e o "remover" conforme _questaoImagemAtual. */
 function _renderImagemQuestao() {
   const preview = document.getElementById('questao-imagem-preview');
   const btn = document.getElementById('btn-questao-imagem');
+  const btnRem = document.getElementById('btn-questao-imagem-remover');
   if (!preview || !btn) return;
 
   if (_questaoImagemAtual) {
     preview.src = _questaoImagemAtual;
     preview.style.display = 'inline-block';
     btn.textContent = '🖼 Trocar imagem';
+    if (btnRem) btnRem.style.display = '';
   } else {
     preview.style.display = 'none';
     preview.src = '';
     btn.textContent = '🖼 Adicionar imagem';
+    if (btnRem) btnRem.style.display = 'none';
   }
 }
 
-/** Abre o seletor de arquivo para a imagem de uma alternativa (exige alternativa já salva). */
+/** Abre o seletor de arquivo para a imagem de uma alternativa. */
 function dispararUploadImagemAlternativa(btn) {
-  const row = btn.closest('.alt-row');
-  if (!row.dataset.altId) {
-    showToast('Salve a questão antes de anexar imagem nesta alternativa.', 'warning');
-    return;
-  }
-  _altImagemUploadAtiva = row;
+  _altImagemUploadAtiva = btn.closest('.alt-row');
   document.getElementById('alternativa-imagem-input').click();
 }
 
-/** Envia a imagem escolhida via POST /questoes/{id}/alternativas/{id}/imagem (multipart). */
+/** Guarda a imagem da alternativa no cliente (data URL) — enviada ao salvar. */
 async function _uploadImagemAlternativaSelecionada(event) {
   const arquivo = event.target.files[0];
   event.target.value = '';
   const row = _altImagemUploadAtiva;
   if (!arquivo || !row) return;
-
-  const questaoId = document.getElementById('questao-id').value;
-  const altId = row.dataset.altId;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
   try {
-    setLoading(true);
-    const resp = await apiFetch(`/questoes/${questaoId}/alternativas/${altId}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    row.dataset.imagemUrl = resp.imagem_url;
+    row.dataset.imagemUrl = await _lerArquivoImagem(arquivo);
     _renderImagemAlternativa(row);
-    showToast('Imagem da alternativa enviada!', 'success');
   } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
   } finally {
-    setLoading(false);
     _altImagemUploadAtiva = null;
   }
 }
 
-/** Remove a imagem de uma alternativa via DELETE /questoes/{id}/alternativas/{id}/imagem. */
-async function removerImagemAlternativa(btn) {
+/** Remove a imagem de uma alternativa (efetivada ao salvar a questão). */
+function removerImagemAlternativa(btn) {
   const row = btn.closest('.alt-row');
-  const questaoId = document.getElementById('questao-id').value;
-  const altId = row.dataset.altId;
-  if (!altId) return;
-
-  try {
-    setLoading(true);
-    await apiFetch(`/questoes/${questaoId}/alternativas/${altId}/imagem`, { method: 'DELETE' });
-    row.dataset.imagemUrl = '';
-    _renderImagemAlternativa(row);
-    showToast('Imagem removida.', 'success');
-  } catch (err) {
-    showToast(err.message || 'Erro ao remover imagem (a alternativa precisa de texto ou imagem).', 'danger');
-  } finally {
-    setLoading(false);
-  }
+  row.dataset.imagemUrl = '';
+  _renderImagemAlternativa(row);
 }
 
 /** Sincroniza a miniatura + botão de remover de uma linha de alternativa com row.dataset.imagemUrl. */
