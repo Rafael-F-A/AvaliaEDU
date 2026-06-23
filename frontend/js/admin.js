@@ -41,6 +41,8 @@ let _provas       = [];
 let _usuarios     = [];
 let _locais       = [];
 let _componentes  = [];   // US36 — cache de componentes curriculares
+/** US37 — componentes escolhidos numa prova NOVA (sem id ainda); gravados ao salvar. */
+let _provaComponentesBuffer = new Set();
 let _modelos      = [];   // US11 — cache de modelos de questão
 let _reservas     = [];   // US27 — cache de reservas (visão admin)
 
@@ -272,16 +274,25 @@ async function excluirProva(id) {
    6. MODAL DE PROVA — CRIAR / EDITAR
    ─────────────────────────────────────── */
 
-function abrirModalNovaProva() {
+async function abrirModalNovaProva() {
   _limparFormProva();
   document.getElementById('modal-prova-titulo').textContent = 'Nova prova';
   document.getElementById('prova-id').value = '';
+  _provaComponentesBuffer.clear();
+  // Carrega a lista de componentes para já permitir a seleção (antes de salvar).
+  if (!_componentes.length) {
+    try {
+      const dataComp = await apiFetch('/componentes/');
+      _componentes = Array.isArray(dataComp) ? dataComp : (dataComp?.componentes ?? []);
+    } catch { /* checklist mostrará a mensagem padrão */ }
+  }
   _renderComponentesChecklist();
   openModal('modal-prova');
 }
 
 async function abrirModalEditarProva(id) {
   _limparFormProva();
+  _provaComponentesBuffer.clear();  // não usado em edição (já há prova_id)
   document.getElementById('modal-prova-titulo').textContent = 'Editar prova';
 
   try {
@@ -352,7 +363,15 @@ async function salvarProva() {
       await apiFetch(`/provas/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
       showToast('Prova atualizada com sucesso!', 'success');
     } else {
-      await apiFetch('/provas', { method: 'POST', body: JSON.stringify(corpo) });
+      const nova = await apiFetch('/provas', { method: 'POST', body: JSON.stringify(corpo) });
+      // US37 — grava os componentes selecionados antes de salvar.
+      if (nova?.id && _provaComponentesBuffer.size) {
+        await Promise.all([..._provaComponentesBuffer].map(cid =>
+          apiFetch(`/componentes/prova/${nova.id}/vincular?comp_id=${cid}`, { method: 'POST' })
+            .catch(() => null)
+        ));
+      }
+      _provaComponentesBuffer.clear();
       showToast('Prova criada! Adicione questões agora.', 'success');
     }
     closeModal('modal-prova');
@@ -379,10 +398,6 @@ function _renderComponentesChecklist(componentesVinculados = []) {
   const container = document.getElementById('prova-componentes-checklist');
   const provaId = document.getElementById('prova-id').value;
 
-  if (!provaId) {
-    container.innerHTML = `<span class="table-empty" style="padding:4px;">Salve a prova para poder vincular componentes.</span>`;
-    return;
-  }
   if (!_componentes.length) {
     container.innerHTML = `<span class="table-empty" style="padding:4px;">Nenhum componente cadastrado ainda.</span>`;
     return;
@@ -391,7 +406,10 @@ function _renderComponentesChecklist(componentesVinculados = []) {
   const busca = document.getElementById('prova-componentes-busca');
   if (busca) busca.value = '';
 
-  const idsVinculados = new Set(componentesVinculados.map(c => c.id));
+  // Em prova nova (sem id) a seleção vem do buffer; em edição, dos vínculos salvos.
+  const idsVinculados = provaId
+    ? new Set(componentesVinculados.map(c => c.id))
+    : new Set(_provaComponentesBuffer);
 
   // Agrupa por nível na ordem pedagógica; dentro do grupo, ordena por nome.
   const ordemNiveis = ['FUNDAMENTAL_I', 'FUNDAMENTAL_II', 'MEDIO', 'ENEM', 'EJA'];
@@ -400,7 +418,7 @@ function _renderComponentesChecklist(componentesVinculados = []) {
     rank(a.nivel) - rank(b.nivel) || (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
 
   let html = '';
-  let nivelAtual = ' ';
+  let nivelAtual = '__inicio__';
   ordenados.forEach(c => {
     if (c.nivel !== nivelAtual) {
       nivelAtual = c.nivel;
@@ -438,10 +456,15 @@ function _filtrarComponentesProva() {
   });
 }
 
-/** Vincula ou desvincula um componente da prova em edição (US37). Ação imediata. */
+/** Vincula/desvincula um componente. Em prova nova (sem id), guarda no buffer
+ *  e persiste ao salvar; em prova existente, grava na hora (US37). */
 async function toggleComponenteProva(compId, vincular) {
   const provaId = document.getElementById('prova-id').value;
-  if (!provaId) return;
+  if (!provaId) {
+    if (vincular) _provaComponentesBuffer.add(compId);
+    else _provaComponentesBuffer.delete(compId);
+    return;
+  }
 
   try {
     await apiFetch(`/componentes/prova/${provaId}/vincular?comp_id=${compId}`, {
@@ -674,6 +697,10 @@ function abrirModalNovaQuestao() {
   document.getElementById('modal-questao-titulo').textContent = 'Nova questão';
   document.getElementById('questao-id').value = '';
   document.getElementById('questao-prova-id').value = _provaAtiva?.id || '';
+  // "Criar a partir de modelo" só aparece em questão nova.
+  const deModelo = document.getElementById('questao-de-modelo');
+  if (deModelo) deModelo.style.display = '';
+  carregarModelosSelectQuestao();
   // Inicia com 2 alternativas (mínimo obrigatório — US10)
   adicionarAlternativa();
   adicionarAlternativa();
@@ -681,9 +708,54 @@ function abrirModalNovaQuestao() {
   openModal('modal-questao');
 }
 
+/** Popula o select de modelos do modal de questão (para "criar a partir de modelo"). */
+async function carregarModelosSelectQuestao() {
+  const sel = document.getElementById('questao-modelo-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Carregando…</option>';
+  try {
+    const data = await apiFetch('/geracao/modelos');
+    _modelos = Array.isArray(data) ? data : (data?.modelos ?? []);
+    sel.innerHTML = '<option value="">Selecione um modelo…</option>' +
+      _modelos.map(m =>
+        `<option value="${m.id}">${_esc((m.modelo_texto || '').slice(0, 60))} — ${nivelLabel(m.nivel)}</option>`
+      ).join('');
+  } catch {
+    sel.innerHTML = '<option value="">(erro ao carregar modelos)</option>';
+  }
+}
+
+/** Pré-preenche o formulário de questão a partir do modelo selecionado (resolve variáveis). */
+async function usarModeloNaQuestao() {
+  const id = document.getElementById('questao-modelo-select').value;
+  if (!id) { showToast('Selecione um modelo.', 'warning'); return; }
+  try {
+    setLoading(true);
+    const m = await apiFetch(`/geracao/modelos/${id}/instanciar`);
+    document.getElementById('questao-enunciado').value   = m.enunciado || '';
+    document.getElementById('questao-dificuldade').value = m.nivel_dificuldade || 'MEDIO';
+    _questaoImagemAtual = m.imagem_url || null;
+    _renderImagemQuestao();
+
+    document.getElementById('alternativas-container').innerHTML = '';
+    _altCounter = 0;
+    (m.alternativas || []).forEach(a => adicionarAlternativa(a.texto, a.is_correta, null, a.imagem_url || null));
+    while (document.querySelectorAll('.alt-row').length < 2) adicionarAlternativa();
+
+    await carregarComponentesSelect('questao-componente', m.componente_id ?? null);
+    showToast('Modelo carregado. Edite e salve a questão.', 'success');
+  } catch (err) {
+    showToast(err.message || 'Erro ao carregar modelo.', 'danger');
+  } finally {
+    setLoading(false);
+  }
+}
+
 async function abrirModalEditarQuestao(id) {
   _limparFormQuestao();
   document.getElementById('modal-questao-titulo').textContent = 'Editar questão';
+  const deModelo = document.getElementById('questao-de-modelo');
+  if (deModelo) deModelo.style.display = 'none';  // "criar de modelo" só em questão nova
 
   try {
     setLoading(true);
@@ -749,8 +821,7 @@ function adicionarAlternativa(texto = '', isCorreta = false, altId = null, image
       oninput="this.closest('.alt-row').querySelector('.alt-correta').disabled = false;">
     <button type="button" class="btn btn-ghost btn-sm alt-btn-imagem"
       onclick="dispararUploadImagemAlternativa(this)"
-      title="${altId ? 'Anexar imagem' : 'Salve a questão antes de anexar imagem nesta alternativa'}"
-      ${altId ? '' : 'disabled'}
+      title="Anexar imagem"
       style="padding:4px 6px; font-size:14px; line-height:1;">🖼</button>
     <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--c-text-muted);"
       title="Marcar como correta">
@@ -798,13 +869,16 @@ async function salvarQuestao() {
     const texto     = row.querySelector('.alt-texto').value.trim();
     const isCorreta = row.querySelector('.alt-correta').checked;
     if (isCorreta) corretaCount++;
+    // A imagem fica guardada no cliente como data URL (anexada antes de salvar)
+    // ou como URL http (imagem já existente, em edição).
+    const img = row.dataset.imagemUrl || '';
+    const ehBase64 = img.startsWith('data:');
     alternativas.push({
       texto,
       is_correta: isCorreta,
       ordem: i + 1,
-      // Preserva a imagem já enviada: o PUT recria as alternativas do zero,
-      // então precisamos reenviar a URL ou ela se perde na edição.
-      imagem_url: row.dataset.imagemUrl || null,
+      imagem_url:    ehBase64 ? null : (img || null),
+      imagem_base64: ehBase64 ? img  : null,
     });
   });
 
@@ -812,8 +886,8 @@ async function salvarQuestao() {
   if (alternativas.length < 2) {
     showToast('Mínimo de 2 alternativas.', 'warning'); return;
   }
-  if (alternativas.some(a => !a.texto)) {
-    showToast('Nenhuma alternativa pode ter texto vazio.', 'warning'); return;
+  if (alternativas.some(a => !a.texto && !a.imagem_url && !a.imagem_base64)) {
+    showToast('Cada alternativa precisa de texto ou imagem.', 'warning'); return;
   }
   if (corretaCount === 0) {
     showToast('Marque exatamente 1 alternativa como correta.', 'warning'); return;
@@ -822,13 +896,16 @@ async function salvarQuestao() {
     showToast('Apenas 1 alternativa pode ser a correta.', 'warning'); return;
   }
 
+  const qImg = _questaoImagemAtual || '';
+  const qEhBase64 = qImg.startsWith('data:');
   const corpo = {
     enunciado,
     prova_id: Number(provaId),
     nivel_dificuldade: dificuldade,
     alternativas,
     componente_id: Number(document.getElementById('questao-componente').value) || null,
-    imagem_url: _questaoImagemAtual || null,
+    imagem_url:    qEhBase64 ? null : (qImg || null),
+    imagem_base64: qEhBase64 ? qImg : null,
   };
 
   try {
@@ -836,14 +913,11 @@ async function salvarQuestao() {
     if (id) {
       await apiFetch(`/questoes/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
       showToast('Questão atualizada!', 'success');
-      closeModal('modal-questao');
     } else {
-      const criada = await apiFetch('/questoes', { method: 'POST', body: JSON.stringify(corpo) });
-      showToast('Questão criada! Agora você já pode anexar imagens nela.', 'success', 5000);
-      // Mantém o modal aberto, em modo edição: upload de imagem exige
-      // que a questão/alternativa já tenha um id, que só existe após o POST.
-      _aplicarResultadoQuestaoSalva(criada);
+      await apiFetch('/questoes', { method: 'POST', body: JSON.stringify(corpo) });
+      showToast('Questão criada!', 'success');
     }
+    closeModal('modal-questao');
     carregarQuestoes(_provaAtiva.id);
   } catch (err) {
     showToast(err.message || 'Erro ao salvar questão.', 'danger');
@@ -892,118 +966,90 @@ function _limparFormQuestao() {
    8B. UPLOAD DE IMAGEM — QUESTÃO E ALTERNATIVA
    ─────────────────────────────────────── */
 
-/** Abre o seletor de arquivo para a imagem do enunciado (exige questão já salva). */
+/** Lê um arquivo de imagem como data URL, validando tipo e tamanho (5MB). */
+function _lerArquivoImagem(file) {
+  return new Promise((resolve, reject) => {
+    const tipos = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!tipos.includes(file.type)) { reject(new Error('Formato inválido. Use PNG, JPG ou WEBP.')); return; }
+    if (file.size > 5 * 1024 * 1024) { reject(new Error('Imagem muito grande. Máximo 5MB.')); return; }
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Abre o seletor de arquivo para a imagem do enunciado. */
 function dispararUploadImagemQuestao() {
-  const questaoId = document.getElementById('questao-id').value;
-  if (!questaoId) {
-    showToast('Salve a questão antes de anexar uma imagem.', 'warning');
-    return;
-  }
   document.getElementById('questao-imagem-input').click();
 }
 
-/** Envia a imagem escolhida via POST /questoes/{id}/imagem (multipart). */
+/** Guarda a imagem do enunciado no cliente (data URL) — enviada ao salvar. */
 async function _uploadImagemQuestaoSelecionada(event) {
   const arquivo = event.target.files[0];
   event.target.value = '';
-  const questaoId = document.getElementById('questao-id').value;
-  if (!arquivo || !questaoId) return;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
+  if (!arquivo) return;
   try {
-    setLoading(true);
-    const resp = await apiFetch(`/questoes/${questaoId}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    _questaoImagemAtual = resp.imagem_url;
+    _questaoImagemAtual = await _lerArquivoImagem(arquivo);
     _renderImagemQuestao();
-    showToast('Imagem da questão enviada!', 'success');
   } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
-  } finally {
-    setLoading(false);
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
   }
 }
 
-/** Atualiza a miniatura e o texto do botão conforme _questaoImagemAtual. */
+/** Remove a imagem do enunciado (efetivada ao salvar a questão). */
+function removerImagemQuestao() {
+  _questaoImagemAtual = null;
+  _renderImagemQuestao();
+}
+
+/** Atualiza a miniatura, o botão e o "remover" conforme _questaoImagemAtual. */
 function _renderImagemQuestao() {
   const preview = document.getElementById('questao-imagem-preview');
   const btn = document.getElementById('btn-questao-imagem');
+  const btnRem = document.getElementById('btn-questao-imagem-remover');
   if (!preview || !btn) return;
 
   if (_questaoImagemAtual) {
     preview.src = _questaoImagemAtual;
     preview.style.display = 'inline-block';
     btn.textContent = '🖼 Trocar imagem';
+    if (btnRem) btnRem.style.display = '';
   } else {
     preview.style.display = 'none';
     preview.src = '';
     btn.textContent = '🖼 Adicionar imagem';
+    if (btnRem) btnRem.style.display = 'none';
   }
 }
 
-/** Abre o seletor de arquivo para a imagem de uma alternativa (exige alternativa já salva). */
+/** Abre o seletor de arquivo para a imagem de uma alternativa. */
 function dispararUploadImagemAlternativa(btn) {
-  const row = btn.closest('.alt-row');
-  if (!row.dataset.altId) {
-    showToast('Salve a questão antes de anexar imagem nesta alternativa.', 'warning');
-    return;
-  }
-  _altImagemUploadAtiva = row;
+  _altImagemUploadAtiva = btn.closest('.alt-row');
   document.getElementById('alternativa-imagem-input').click();
 }
 
-/** Envia a imagem escolhida via POST /questoes/{id}/alternativas/{id}/imagem (multipart). */
+/** Guarda a imagem da alternativa no cliente (data URL) — enviada ao salvar. */
 async function _uploadImagemAlternativaSelecionada(event) {
   const arquivo = event.target.files[0];
   event.target.value = '';
   const row = _altImagemUploadAtiva;
   if (!arquivo || !row) return;
-
-  const questaoId = document.getElementById('questao-id').value;
-  const altId = row.dataset.altId;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
   try {
-    setLoading(true);
-    const resp = await apiFetch(`/questoes/${questaoId}/alternativas/${altId}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    row.dataset.imagemUrl = resp.imagem_url;
+    row.dataset.imagemUrl = await _lerArquivoImagem(arquivo);
     _renderImagemAlternativa(row);
-    showToast('Imagem da alternativa enviada!', 'success');
   } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
   } finally {
-    setLoading(false);
     _altImagemUploadAtiva = null;
   }
 }
 
-/** Remove a imagem de uma alternativa via DELETE /questoes/{id}/alternativas/{id}/imagem. */
-async function removerImagemAlternativa(btn) {
+/** Remove a imagem de uma alternativa (efetivada ao salvar a questão). */
+function removerImagemAlternativa(btn) {
   const row = btn.closest('.alt-row');
-  const questaoId = document.getElementById('questao-id').value;
-  const altId = row.dataset.altId;
-  if (!altId) return;
-
-  try {
-    setLoading(true);
-    await apiFetch(`/questoes/${questaoId}/alternativas/${altId}/imagem`, { method: 'DELETE' });
-    row.dataset.imagemUrl = '';
-    _renderImagemAlternativa(row);
-    showToast('Imagem removida.', 'success');
-  } catch (err) {
-    showToast(err.message || 'Erro ao remover imagem (a alternativa precisa de texto ou imagem).', 'danger');
-  } finally {
-    setLoading(false);
-  }
+  row.dataset.imagemUrl = '';
+  _renderImagemAlternativa(row);
 }
 
 /** Sincroniza a miniatura + botão de remover de uma linha de alternativa com row.dataset.imagemUrl. */
@@ -1049,6 +1095,8 @@ function abrirModalGerarQuestoes() {
   document.getElementById('gerar-prova-id').value    = _provaAtiva.id;
   document.getElementById('gerar-quantidade').value  = 10;
   document.getElementById('gerar-dificuldade').value = '';
+  const selNivel = document.getElementById('gerar-nivel');
+  if (selNivel) selNivel.value = '';
   carregarComponentesSelect('gerar-componente', null, 'Qualquer componente');
   openModal('modal-gerar-questoes');
 }
@@ -1061,6 +1109,7 @@ function abrirModalGerarQuestoes() {
 async function gerarQuestoesAutomaticamente() {
   const provaId      = document.getElementById('gerar-prova-id').value;
   const quantidade   = _parseNum('gerar-quantidade');
+  const nivel        = document.getElementById('gerar-nivel')?.value || null;
   const dificuldade  = document.getElementById('gerar-dificuldade').value || null;
   const componenteId = document.getElementById('gerar-componente').value || null;
 
@@ -1071,6 +1120,7 @@ async function gerarQuestoesAutomaticamente() {
 
   const corpo = {
     quantidade,
+    nivel,
     dificuldade,
     componente_id: componenteId ? Number(componenteId) : null,
   };
@@ -1083,7 +1133,9 @@ async function gerarQuestoesAutomaticamente() {
     });
     closeModal('modal-gerar-questoes');
 
-    if (res.quantidade_erros > 0) {
+    if (res.aviso) {
+      showToast(res.aviso, 'warning', 7000);
+    } else if (res.quantidade_erros > 0) {
       showToast(
         `${res.quantidade_gerada} questões geradas, ${res.quantidade_erros} falharam.`,
         'warning', 5000
@@ -1325,6 +1377,10 @@ async function carregarModelos() {
   }
 }
 
+/** US11/E — imagens das alternativas do modelo no modal (slot -> url http ou data URL). */
+let _modeloImgs = {};
+let _modeloImgSlotAtivo = null;
+
 function _renderModelos(lista) {
   const tbody = document.getElementById('modelos-tbody');
 
@@ -1346,7 +1402,7 @@ function _renderModelos(lista) {
       <td class="td-muted">${numVars > 0 ? numVars + ' var.' : '—'}${m.imagem_url ? ' · 🖼' : ''}</td>
       <td>
         <div class="td-actions">
-          <button class="btn btn-ghost btn-sm" onclick="dispararUploadImagemModelo(${m.id})">Imagem</button>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModalEditarModelo(${m.id})">Editar</button>
           <button class="btn btn-ghost btn-sm btn-danger" onclick="excluirModelo(${m.id})">Excluir</button>
         </div>
       </td>
@@ -1354,14 +1410,98 @@ function _renderModelos(lista) {
   }).join('');
 }
 
-/** Abre o modal de criação de modelo (não há edição — backend não expõe PUT). */
+/** Abre o modal em modo CRIAÇÃO. */
 function abrirModalNovoModelo() {
   _limparFormModelo();
+  document.getElementById('modelo-modal-titulo').textContent = 'Novo modelo de questão';
   carregarComponentesSelect('modelo-componente', null, 'Nenhum (genérico)');
   openModal('modal-modelo');
 }
 
-/** Salva um novo modelo de questão via POST /geracao/modelos. */
+/** Abre o modal em modo EDIÇÃO, populando os campos a partir do cache _modelos. */
+function abrirModalEditarModelo(id) {
+  const m = _modelos.find(x => x.id === id);
+  if (!m) { showToast('Modelo não encontrado. Recarregue a lista.', 'warning'); return; }
+
+  _limparFormModelo();
+  document.getElementById('modelo-modal-titulo').textContent = 'Editar modelo de questão';
+  document.getElementById('modelo-id').value          = m.id;
+  document.getElementById('modelo-texto').value        = m.modelo_texto || '';
+  document.getElementById('modelo-gabarito').value     = m.gabarito || '';
+  const dist = Array.isArray(m.distradores) ? m.distradores : [];
+  document.getElementById('modelo-distrator-1').value  = dist[0]?.texto || '';
+  document.getElementById('modelo-distrator-2').value  = dist[1]?.texto || '';
+  document.getElementById('modelo-distrator-3').value  = dist[2]?.texto || '';
+  document.getElementById('modelo-nivel').value        = m.nivel || '';
+  document.getElementById('modelo-dificuldade').value  = m.dificuldade || 'MEDIO';
+  document.getElementById('modelo-serie').value        = m.serie || '';
+  document.getElementById('modelo-variaveis').value    =
+    m.variaveis ? JSON.stringify(m.variaveis) : '';
+  carregarComponentesSelect('modelo-componente', m.componente_id || null, 'Nenhum (genérico)');
+
+  // Imagens das alternativas (enunciado, gabarito, distratores)
+  _modeloImgs = {};
+  if (m.imagem_url) _modeloImgs.enunciado = m.imagem_url;
+  if (m.gabarito_imagem_url) _modeloImgs.gabarito = m.gabarito_imagem_url;
+  dist.forEach((d, i) => { if (d?.imagem_url) _modeloImgs['distrator_' + i] = d.imagem_url; });
+  _renderTodosImgModelo();
+
+  openModal('modal-modelo');
+}
+
+/* ── Imagens das alternativas do modelo (esquema unificado, salvas ao salvar) ── */
+
+/** Abre o seletor de arquivo para um slot (enunciado / gabarito / distrator_N). */
+function dispararImgModelo(slot) {
+  _modeloImgSlotAtivo = slot;
+  document.getElementById('modelo-img-input').click();
+}
+
+/** Guarda a imagem escolhida (data URL) no slot — enviada ao salvar. */
+async function _onImgModelo(event) {
+  const arquivo = event.target.files[0];
+  event.target.value = '';
+  const slot = _modeloImgSlotAtivo;
+  if (!arquivo || !slot) return;
+  try {
+    _modeloImgs[slot] = await _lerArquivoImagem(arquivo);
+    _renderImgModelo(slot);
+  } catch (err) {
+    showToast(err.message || 'Imagem inválida.', 'danger', 5000);
+  } finally {
+    _modeloImgSlotAtivo = null;
+  }
+}
+
+/** Remove a imagem de um slot (efetivada ao salvar). */
+function removerImgModelo(slot) {
+  delete _modeloImgs[slot];
+  _renderImgModelo(slot);
+}
+
+/** Sincroniza o preview de um slot com _modeloImgs. */
+function _renderImgModelo(slot) {
+  const box = document.querySelector(`.modelo-img[data-slot="${slot}"]`);
+  if (!box) return;
+  const url = _modeloImgs[slot];
+  const img = box.querySelector('.modelo-img-preview');
+  if (url) { img.src = url; box.style.display = 'flex'; }
+  else { img.src = ''; box.style.display = 'none'; }
+}
+
+function _renderTodosImgModelo() {
+  ['enunciado', 'gabarito', 'distrator_0', 'distrator_1', 'distrator_2'].forEach(_renderImgModelo);
+}
+
+/** Divide a imagem de um slot em { imagem_url } (http) ou { imagem_base64 } (data URL). */
+function _imgPayloadModelo(img) {
+  if (!img) return { imagem_url: null, imagem_base64: null };
+  return img.startsWith('data:')
+    ? { imagem_url: null, imagem_base64: img }
+    : { imagem_url: img, imagem_base64: null };
+}
+
+/** Salva o modelo (POST novo / PUT edição), com imagens das alternativas. */
 async function salvarModelo() {
   const modeloTexto = document.getElementById('modelo-texto').value.trim();
   const gabarito     = document.getElementById('modelo-gabarito').value.trim();
@@ -1371,10 +1511,6 @@ async function salvarModelo() {
     showToast('Preencha o enunciado, o gabarito e o nível.', 'warning');
     return;
   }
-
-  const distradores = ['modelo-distrator-1', 'modelo-distrator-2', 'modelo-distrator-3']
-    .map(id => document.getElementById(id).value.trim())
-    .filter(Boolean);
 
   let variaveis = null;
   const variaveisRaw = document.getElementById('modelo-variaveis').value.trim();
@@ -1387,6 +1523,18 @@ async function salvarModelo() {
     }
   }
 
+  // Distratores: texto + imagem (pula os totalmente vazios)
+  const distradores = [];
+  for (let i = 0; i < 3; i++) {
+    const texto = document.getElementById('modelo-distrator-' + (i + 1)).value.trim();
+    const img = _modeloImgs['distrator_' + i];
+    if (!texto && !img) continue;
+    distradores.push({ texto, ..._imgPayloadModelo(img) });
+  }
+
+  const enun = _imgPayloadModelo(_modeloImgs.enunciado);
+  const gab  = _imgPayloadModelo(_modeloImgs.gabarito);
+
   const corpo = {
     modelo_texto  : modeloTexto,
     gabarito,
@@ -1397,12 +1545,23 @@ async function salvarModelo() {
     componente_id : document.getElementById('modelo-componente').value
                       ? Number(document.getElementById('modelo-componente').value) : null,
     dificuldade   : document.getElementById('modelo-dificuldade').value || 'MEDIO',
+    imagem_url             : enun.imagem_url,
+    imagem_base64          : enun.imagem_base64,
+    gabarito_imagem_url    : gab.imagem_url,
+    gabarito_imagem_base64 : gab.imagem_base64,
   };
+
+  const id = document.getElementById('modelo-id').value;
 
   try {
     setLoading(true);
-    await apiFetch('/geracao/modelos', { method: 'POST', body: JSON.stringify(corpo) });
-    showToast('Modelo de questão criado!', 'success');
+    if (id) {
+      await apiFetch(`/geracao/modelos/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
+      showToast('Modelo atualizado!', 'success');
+    } else {
+      await apiFetch('/geracao/modelos', { method: 'POST', body: JSON.stringify(corpo) });
+      showToast('Modelo de questão criado!', 'success');
+    }
     closeModal('modal-modelo');
     carregarModelos();
   } catch (err) {
@@ -1432,44 +1591,15 @@ function excluirModelo(id) {
   );
 }
 
-/** Abre o seletor de arquivo para anexar uma imagem a um modelo (input oculto). */
-function dispararUploadImagemModelo(modeloId) {
-  _modeloUploadAtivo = modeloId;
-  document.getElementById('modelo-imagem-input').click();
-}
-
-/** Envia a imagem escolhida via POST /geracao/modelos/{id}/imagem (multipart). */
-async function _uploadImagemSelecionada(event) {
-  const arquivo = event.target.files[0];
-  event.target.value = ''; // permite selecionar o mesmo arquivo novamente depois
-  if (!arquivo || !_modeloUploadAtivo) return;
-
-  const formData = new FormData();
-  formData.append('arquivo', arquivo);
-
-  try {
-    setLoading(true);
-    await apiFetch(`/geracao/modelos/${_modeloUploadAtivo}/imagem`, {
-      method: 'POST',
-      body: formData,
-    });
-    showToast('Imagem enviada!', 'success');
-    carregarModelos();
-  } catch (err) {
-    showToast(err.message || 'Erro ao enviar imagem (máx. 5MB, PNG/JPG/WEBP).', 'danger', 5000);
-  } finally {
-    setLoading(false);
-    _modeloUploadAtivo = null;
-  }
-}
-
 function _limparFormModelo() {
-  ['modelo-texto', 'modelo-gabarito', 'modelo-distrator-1', 'modelo-distrator-2',
+  ['modelo-id', 'modelo-texto', 'modelo-gabarito', 'modelo-distrator-1', 'modelo-distrator-2',
    'modelo-distrator-3', 'modelo-serie', 'modelo-variaveis'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('modelo-nivel').value       = '';
   document.getElementById('modelo-dificuldade').value = 'MEDIO';
+  _modeloImgs = {};
+  _renderTodosImgModelo();
 }
 
 /* ─────────────────────────────────────────

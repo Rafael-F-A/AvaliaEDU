@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, model_validator, field_serializer
+from pydantic import BaseModel, EmailStr, Field, model_validator, field_serializer, field_validator
 from typing import Optional
 from datetime import datetime, date
 
@@ -189,6 +189,7 @@ class AlternativaCreate(BaseModel):
     is_correta: bool = False
     ordem: Optional[int] = None
     imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None  # imagem anexada antes de salvar (data URL/base64)
 
 class AlternativaResponse(BaseModel):
     id: int
@@ -229,6 +230,7 @@ class QuestaoCreate(BaseModel):
     nivel_dificuldade: Optional[str] = "MEDIO"
     alternativas: list[AlternativaCreate]
     imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None  # imagem anexada antes de salvar (data URL/base64)
 
 class QuestaoResponse(BaseModel):
     id: int
@@ -427,27 +429,68 @@ class HistoricoCertificacaoResponse(BaseModel):
 
 # Modelos de questão
 
+class DistratorItem(BaseModel):
+    """Distrator de um modelo: texto + imagem opcional (entrada)."""
+    texto: str = ""
+    imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None  # imagem anexada antes de salvar
+
+
+class DistratorOut(BaseModel):
+    """Distrator devolvido ao frontend (imagem com URL fresca)."""
+    texto: str = ""
+    imagem_url: Optional[str] = None
+
+    @field_serializer('imagem_url')
+    def _ser_imagem_url(self, v, _info):
+        return _imagem_url_fresca(v)
+
+
 class ModeloQuestaoCreate(BaseModel):
     modelo_texto: str
     gabarito: str
-    distradores: list[str]
+    distradores: list[DistratorItem] = []
     variaveis: Optional[dict] = None
     nivel: str
     serie: Optional[str] = None
     componente_id: Optional[int] = None
     dificuldade: Optional[str] = "MEDIO"
+    imagem_url: Optional[str] = None
+    imagem_base64: Optional[str] = None          # imagem do enunciado
+    gabarito_imagem_url: Optional[str] = None
+    gabarito_imagem_base64: Optional[str] = None  # imagem do gabarito
 
 class ModeloQuestaoResponse(BaseModel):
     id: int
     modelo_texto: str
     gabarito: str
-    distradores: list[str]
+    distradores: list[DistratorOut] = []
     variaveis: Optional[dict] = None
     nivel: str
     serie: Optional[str] = None
     componente_id: Optional[int] = None
     dificuldade: str
+    imagem_url: Optional[str] = None
+    gabarito_imagem_url: Optional[str] = None
     created_at: Optional[datetime] = None
+
+    @field_validator('distradores', mode='before')
+    @classmethod
+    def _coerce_distradores(cls, v):
+        """Aceita formato legado (list[str]) e o novo (list[{texto,imagem_url}])."""
+        if not isinstance(v, list):
+            return []
+        out = []
+        for d in v:
+            if isinstance(d, str):
+                out.append({"texto": d, "imagem_url": None})
+            elif isinstance(d, dict):
+                out.append({"texto": d.get("texto", ""), "imagem_url": d.get("imagem_url")})
+        return out
+
+    @field_serializer('imagem_url', 'gabarito_imagem_url')
+    def _ser_imagem_url(self, v, _info):
+        return _imagem_url_fresca(v)
 
     class Config:
         from_attributes = True
@@ -467,6 +510,7 @@ class GerarQuestoesResponse(BaseModel):
     quantidade_erros: int
     erros: list[dict]
     questoes: list[QuestaoResponse]
+    aviso: Optional[str] = None
 
     class Config:
         from_attributes = True

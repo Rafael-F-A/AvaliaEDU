@@ -28,6 +28,15 @@ def listar_questoes(
     return questao_service.listar_questoes(db, prova_id)
 
 
+@router.get("/{questao_id}", response_model=schemas.QuestaoResponse)
+def buscar_questao(
+    questao_id: int,
+    db: Session = Depends(get_db),
+    admin: models.Usuario = Depends(get_usuario_admin),
+):
+    return questao_service.buscar_questao(questao_id, db)
+
+
 @router.put("/{questao_id}", response_model=schemas.QuestaoResponse)
 def editar_questao(
     questao_id: int,

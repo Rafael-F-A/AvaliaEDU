@@ -95,6 +95,7 @@
 
     <div class="sidebar-footer">
       <span class="sidebar-username" id="sidebar-username">Carregando...</span>
+      <a href="orientacao.html" target="_blank" rel="noopener" class="sidebar-ajuda" title="Como usar o sistema">Como usar</a>
       <button class="btn-logout" id="btn-logout">Sair</button>
     </div>
   </aside>
@@ -552,9 +553,6 @@
       </div>
     </section>
 
-    <!-- Input oculto compartilhado para upload de imagem de modelo (US11) -->
-    <input type="file" id="modelo-imagem-input" accept="image/png,image/jpeg,image/webp" hidden
-      onchange="_uploadImagemSelecionada(event)">
     <input type="file" id="questao-imagem-input" accept="image/png,image/jpeg,image/webp" hidden
       onchange="_uploadImagemQuestaoSelecionada(event)">
     <input type="file" id="alternativa-imagem-input" accept="image/png,image/jpeg,image/webp" hidden
@@ -792,7 +790,7 @@
       <div class="form-group" style="margin-top:4px;">
         <label class="form-label">Componentes curriculares</label>
         <p style="font-size:12px; color:var(--c-text-muted); margin:0 0 8px;">
-          Disciplinas avaliadas por esta prova (US37). O vínculo é salvo na hora — não precisa clicar em "Salvar prova".
+          Disciplinas avaliadas por esta prova (US37). Em prova nova, são salvas ao clicar em "Salvar prova"; em prova já existente, o vínculo é salvo na hora.
         </p>
         <div class="input-search" style="margin-bottom:8px;">
           <span class="input-search-icon">🔍</span>
@@ -824,6 +822,15 @@
     <div class="modal-body">
       <input type="hidden" id="questao-id">
       <input type="hidden" id="questao-prova-id">
+      <div class="form-group" id="questao-de-modelo" style="margin-bottom:16px; padding:12px; background:var(--c-surface-2,#f4f6fa); border-radius:8px;">
+        <label class="form-label" for="questao-modelo-select">Criar a partir de um modelo (opcional)</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="form-select-wrap" style="flex:1;">
+            <select class="form-select" id="questao-modelo-select"><option value="">Selecione um modelo…</option></select>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="usarModeloNaQuestao()">Usar modelo</button>
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label required" for="questao-enunciado">Enunciado</label>
         <textarea class="form-textarea" id="questao-enunciado" rows="4" placeholder="Digite o enunciado completo da questão..."></textarea>
@@ -832,6 +839,8 @@
             style="display:none; max-height:60px; border-radius:6px; border:1px solid var(--c-border);">
           <button type="button" class="btn btn-ghost btn-sm" id="btn-questao-imagem"
             onclick="dispararUploadImagemQuestao()">🖼 Adicionar imagem</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-questao-imagem-remover"
+            onclick="removerImagemQuestao()" style="display:none; color:var(--c-danger);">Remover</button>
           <span style="font-size:12px; color:var(--c-text-muted);">PNG, JPG ou WEBP, máx. 5MB</span>
         </div>
       </div>
@@ -885,11 +894,25 @@
       <input type="hidden" id="gerar-prova-id">
       <p class="card-subtitle" style="margin-bottom:20px;">
         As questões são geradas a partir dos modelos cadastrados em
-        <strong>Modelos de questão</strong>. O nível é herdado automaticamente da prova.
+        <strong>Modelos de questão</strong>, sem repetir o mesmo modelo. Cada questão
+        vem de um modelo distinto.
       </p>
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label required" for="gerar-quantidade">Quantidade de questões</label>
         <input class="form-input" type="number" id="gerar-quantidade" min="1" value="10">
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label" for="gerar-nivel">Nível</label>
+        <div class="form-select-wrap">
+          <select class="form-select" id="gerar-nivel">
+            <option value="">Herdar o nível da prova</option>
+            <option value="FUNDAMENTAL_I">Fundamental I</option>
+            <option value="FUNDAMENTAL_II">Fundamental II</option>
+            <option value="MEDIO">Médio</option>
+            <option value="ENEM">ENEM</option>
+            <option value="EJA">EJA</option>
+          </select>
+        </div>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div class="form-group">
@@ -1372,34 +1395,73 @@
 <div class="modal-overlay" id="modal-modelo">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <h2 class="modal-title">Novo modelo de questão</h2>
+      <h2 class="modal-title" id="modelo-modal-titulo">Novo modelo de questão</h2>
       <button class="modal-close" data-close-modal="modal-modelo">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-group" style="margin-bottom:20px;">
+      <input type="hidden" id="modelo-id">
+      <input type="file" id="modelo-img-input" accept="image/png,image/jpeg,image/webp" hidden onchange="_onImgModelo(event)">
+
+      <div class="form-group" style="margin-bottom:16px;">
         <label class="form-label required" for="modelo-texto">Enunciado (template)</label>
         <textarea class="form-textarea" id="modelo-texto" rows="3"
           placeholder="Ex: Quanto é {a} + {b}? (use {a+b} no gabarito para calcular automaticamente)"></textarea>
+        <div class="modelo-img" data-slot="enunciado" style="display:none; align-items:center; gap:8px; margin-top:6px;">
+          <img class="modelo-img-preview" src="" alt="Imagem do enunciado" style="max-height:48px; border-radius:6px; border:1px solid var(--c-border);">
+          <button type="button" class="btn btn-ghost btn-sm modelo-img-rem" onclick="removerImgModelo('enunciado')" style="color:var(--c-danger);">Remover</button>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="dispararImgModelo('enunciado')" style="margin-top:6px;">🖼 Imagem do enunciado</button>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
-        <div class="form-group">
-          <label class="form-label required" for="modelo-gabarito">Gabarito (correta)</label>
-          <input class="form-input" type="text" id="modelo-gabarito" placeholder="Ex: {a+b}">
+
+      <label class="form-label">Alternativas (texto e/ou imagem)</label>
+      <div style="display:flex; flex-direction:column; gap:10px; margin:6px 0 20px;">
+        <div class="form-group" style="margin:0;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge badge-aprovado" style="min-width:78px; text-align:center;">Correta</span>
+            <input class="form-input" type="text" id="modelo-gabarito" placeholder="Texto da alternativa correta (ex: {a+b})" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="dispararImgModelo('gabarito')" title="Imagem">🖼</button>
+          </div>
+          <div class="modelo-img" data-slot="gabarito" style="display:none; align-items:center; gap:8px; margin-top:6px; padding-left:86px;">
+            <img class="modelo-img-preview" src="" style="max-height:38px; border-radius:6px; border:1px solid var(--c-border);">
+            <button type="button" class="btn btn-ghost btn-sm modelo-img-rem" onclick="removerImgModelo('gabarito')" style="color:var(--c-danger);">Remover</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="modelo-distrator-1">Distrator 1</label>
-          <input class="form-input" type="text" id="modelo-distrator-1">
+        <div class="form-group" style="margin:0;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge badge-rascunho" style="min-width:78px; text-align:center;">Distrator 1</span>
+            <input class="form-input" type="text" id="modelo-distrator-1" placeholder="Texto do distrator 1" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="dispararImgModelo('distrator_0')" title="Imagem">🖼</button>
+          </div>
+          <div class="modelo-img" data-slot="distrator_0" style="display:none; align-items:center; gap:8px; margin-top:6px; padding-left:86px;">
+            <img class="modelo-img-preview" src="" style="max-height:38px; border-radius:6px; border:1px solid var(--c-border);">
+            <button type="button" class="btn btn-ghost btn-sm modelo-img-rem" onclick="removerImgModelo('distrator_0')" style="color:var(--c-danger);">Remover</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="modelo-distrator-2">Distrator 2</label>
-          <input class="form-input" type="text" id="modelo-distrator-2">
+        <div class="form-group" style="margin:0;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge badge-rascunho" style="min-width:78px; text-align:center;">Distrator 2</span>
+            <input class="form-input" type="text" id="modelo-distrator-2" placeholder="Texto do distrator 2" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="dispararImgModelo('distrator_1')" title="Imagem">🖼</button>
+          </div>
+          <div class="modelo-img" data-slot="distrator_1" style="display:none; align-items:center; gap:8px; margin-top:6px; padding-left:86px;">
+            <img class="modelo-img-preview" src="" style="max-height:38px; border-radius:6px; border:1px solid var(--c-border);">
+            <button type="button" class="btn btn-ghost btn-sm modelo-img-rem" onclick="removerImgModelo('distrator_1')" style="color:var(--c-danger);">Remover</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge badge-rascunho" style="min-width:78px; text-align:center;">Distrator 3</span>
+            <input class="form-input" type="text" id="modelo-distrator-3" placeholder="Texto do distrator 3" style="flex:1;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="dispararImgModelo('distrator_2')" title="Imagem">🖼</button>
+          </div>
+          <div class="modelo-img" data-slot="distrator_2" style="display:none; align-items:center; gap:8px; margin-top:6px; padding-left:86px;">
+            <img class="modelo-img-preview" src="" style="max-height:38px; border-radius:6px; border:1px solid var(--c-border);">
+            <button type="button" class="btn btn-ghost btn-sm modelo-img-rem" onclick="removerImgModelo('distrator_2')" style="color:var(--c-danger);">Remover</button>
+          </div>
         </div>
       </div>
+
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
-        <div class="form-group">
-          <label class="form-label" for="modelo-distrator-3">Distrator 3</label>
-          <input class="form-input" type="text" id="modelo-distrator-3">
-        </div>
         <div class="form-group">
           <label class="form-label required" for="modelo-nivel">Nível</label>
           <div class="form-select-wrap">
@@ -1423,12 +1485,12 @@
             </select>
           </div>
         </div>
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
         <div class="form-group">
           <label class="form-label" for="modelo-serie">Série (opcional)</label>
-          <input class="form-input" type="text" id="modelo-serie" placeholder="Ex: 9º Ano, 3ª Série...">
+          <input class="form-input" type="text" id="modelo-serie" placeholder="Ex: 9º Ano">
         </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:4px;">
         <div class="form-group">
           <label class="form-label" for="modelo-componente">Componente curricular</label>
           <div class="form-select-wrap">
@@ -1437,16 +1499,16 @@
             </select>
           </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="modelo-variaveis">Variáveis (JSON opcional)</label>
-        <textarea class="form-textarea" id="modelo-variaveis" rows="2"
-          placeholder='Ex: {"a": [2, 3, 4], "b": [10, 20, 30]}'></textarea>
+        <div class="form-group">
+          <label class="form-label" for="modelo-variaveis">Variáveis (JSON opcional)</label>
+          <textarea class="form-textarea" id="modelo-variaveis" rows="2"
+            placeholder='Ex: {"a": [2, 3, 4], "b": [10, 20, 30]}'></textarea>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close-modal="modal-modelo">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarModelo()">Salvar modelo</button>
+      <button class="btn btn-primary" id="btn-salvar-modelo" onclick="salvarModelo()">Salvar modelo</button>
     </div>
   </div>
 </div>

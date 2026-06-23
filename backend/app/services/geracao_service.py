@@ -1,4 +1,6 @@
 import os
+import base64
+import binascii
 import tempfile
 import random
 import json
@@ -8,6 +10,52 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 
 from app import models, schemas
+from app.utils.storage import upload_imagem_modelo_slot
+
+_EXT_IMG = {"image/jpeg": "jpeg", "image/png": "png", "image/webp": "webp"}
+_MAX_IMG = 5 * 1024 * 1024  # 5 MB
+
+
+def _subir_imagem_base64_modelo(b64: str, modelo_id: int, slot: str) -> str:
+    """Decodifica imagem (data URL/base64), valida e sobe ao storage do modelo
+    com um nome único por slot (gabarito / distrator_N)."""
+    if b64.startswith("data:"):
+        try:
+            header, dados = b64.split(",", 1)
+            mime = header.split(";")[0][len("data:"):]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Imagem base64 inválida.")
+    else:
+        dados, mime = b64, "image/png"
+    ext = _EXT_IMG.get(mime)
+    if not ext:
+        raise HTTPException(status_code=400, detail="Formato inválido. Use PNG, JPG ou WEBP.")
+    try:
+        raw = base64.b64decode(dados, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=400, detail="Imagem base64 inválida.")
+    if len(raw) > _MAX_IMG:
+        raise HTTPException(status_code=400, detail="Imagem muito grande. Máximo 5MB.")
+    with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = tmp.name
+    try:
+        return upload_imagem_modelo_slot(tmp_path, modelo_id, slot, ext)
+    finally:
+        os.unlink(tmp_path)
+
+
+def _normalizar_distradores(raw) -> list:
+    """Normaliza distradores legados (list[str]) e novos (list[{texto,imagem_url}])
+    para sempre [{'texto': str, 'imagem_url': str|None}]."""
+    out = []
+    if isinstance(raw, list):
+        for d in raw:
+            if isinstance(d, str):
+                out.append({"texto": d, "imagem_url": None})
+            elif isinstance(d, dict):
+                out.append({"texto": d.get("texto", ""), "imagem_url": d.get("imagem_url")})
+    return out
 
 # Helpers de template
 
@@ -73,12 +121,14 @@ def _gerar_questao_a_partir_de_modelo(
 
     enunciado   = _aplicar_template(modelo.modelo_texto, ctx)
     gabarito    = _aplicar_template(modelo.gabarito or "", ctx)
-    distradores_raw = modelo.distradores if isinstance(modelo.distradores, list) else []
-    distradores = [_aplicar_template(d, ctx) for d in distradores_raw]
+    distradores = [
+        {"texto": _aplicar_template(d["texto"], ctx), "imagem_url": d["imagem_url"]}
+        for d in _normalizar_distradores(modelo.distradores)
+    ]
 
     # Garante exatamente 3 distratores (preenche ou trunca)
     while len(distradores) < 3:
-        distradores.append(f"(alternativa {len(distradores)+1})")
+        distradores.append({"texto": f"(alternativa {len(distradores)+1})", "imagem_url": None})
     distradores = distradores[:3]
 
     questao = models.Questao(
@@ -90,19 +140,54 @@ def _gerar_questao_a_partir_de_modelo(
     db.add(questao)
     db.flush()  # obtém o ID sem commit
 
-    # Cria alternativas: 1 correta + 3 distratores, em ordem aleatória
-    alternativas = [(gabarito, True)] + [(d, False) for d in distradores]
+    # Cria alternativas: 1 correta + 3 distratores (com imagens), em ordem aleatória
+    alternativas = [{"texto": gabarito, "is_correta": True, "imagem_url": modelo.gabarito_imagem_url}]
+    alternativas += [
+        {"texto": d["texto"], "is_correta": False, "imagem_url": d["imagem_url"]}
+        for d in distradores
+    ]
     random.shuffle(alternativas)
 
-    for idx, (texto, is_correta) in enumerate(alternativas):
+    for idx, a in enumerate(alternativas):
         db.add(models.Alternativa(
-            texto=texto,
+            texto=a["texto"],
             questao_id=questao.id,
-            is_correta=is_correta,
+            is_correta=a["is_correta"],
             ordem=idx,
+            imagem_url=a["imagem_url"],
         ))
 
     return questao
+
+
+def instanciar_modelo(modelo_id: int, db: Session) -> dict:
+    """Resolve um modelo em uma questão concreta (variáveis sorteadas) SEM
+    persistir. Usado para pré-preencher o modal de nova questão (US11)."""
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+
+    variaveis_def = modelo.variaveis if isinstance(modelo.variaveis, dict) else {}
+    ctx = _resolver_variaveis(variaveis_def)
+
+    enunciado = _aplicar_template(modelo.modelo_texto, ctx)
+    gabarito  = _aplicar_template(modelo.gabarito or "", ctx)
+
+    alternativas = [{"texto": gabarito, "is_correta": True, "imagem_url": modelo.gabarito_imagem_url}]
+    alternativas += [
+        {"texto": _aplicar_template(d["texto"], ctx), "is_correta": False, "imagem_url": d["imagem_url"]}
+        for d in _normalizar_distradores(modelo.distradores)
+    ]
+
+    return {
+        "enunciado": enunciado,
+        "nivel_dificuldade": modelo.dificuldade,
+        "componente_id": modelo.componente_id,
+        "imagem_url": modelo.imagem_url,
+        "alternativas": alternativas,
+    }
 
 
 def gerar_questoes_para_prova(
@@ -152,11 +237,20 @@ def gerar_questoes_para_prova(
             ),
         )
 
-    # Permite repetir modelos se há menos modelos do que questões pedidas
+    # Sem repetição: cada questão vem de um modelo DISTINTO (evita duplicar
+    # enunciado/imagem). Se foram pedidas mais questões do que há modelos,
+    # gera o máximo possível e devolve um aviso.
+    n_gerar = min(quantidade, len(modelos_disponiveis))
+    modelos_selecionados = random.sample(modelos_disponiveis, k=n_gerar)
+
+    aviso = None
     if quantidade > len(modelos_disponiveis):
-        modelos_selecionados = random.choices(modelos_disponiveis, k=quantidade)
-    else:
-        modelos_selecionados = random.sample(modelos_disponiveis, k=quantidade)
+        aviso = (
+            f"Você pediu {quantidade} questões, mas só há "
+            f"{len(modelos_disponiveis)} modelo(s) para os filtros. "
+            f"Foram geradas {len(modelos_disponiveis)} (sem repetir modelos). "
+            "Cadastre mais modelos para gerar mais questões distintas."
+        )
 
     geradas = []
     erros   = []
@@ -180,16 +274,38 @@ def gerar_questoes_para_prova(
         "quantidade_erros"  : len(erros),
         "erros"             : erros,
         "questoes"          : geradas,
+        "aviso"             : aviso,
     }
 
 # CRUD de modelos (admin)
 
+def _processar_imagens_modelo(dados: schemas.ModeloQuestaoCreate, modelo_id: int):
+    """Sobe as imagens enviadas em base64 (enunciado, gabarito e distratores) e
+    devolve (imagem_enunciado_url, gabarito_imagem_url, distradores_json)."""
+    img_enunciado = dados.imagem_url
+    if dados.imagem_base64:
+        img_enunciado = _subir_imagem_base64_modelo(dados.imagem_base64, modelo_id, "imagem")
+
+    gab_img = dados.gabarito_imagem_url
+    if dados.gabarito_imagem_base64:
+        gab_img = _subir_imagem_base64_modelo(dados.gabarito_imagem_base64, modelo_id, "gabarito")
+
+    distradores = []
+    for i, d in enumerate(dados.distradores):
+        url = d.imagem_url
+        if d.imagem_base64:
+            url = _subir_imagem_base64_modelo(d.imagem_base64, modelo_id, f"distrator_{i}")
+        distradores.append({"texto": d.texto or "", "imagem_url": url})
+
+    return img_enunciado, gab_img, distradores
+
+
 def criar_modelo(dados: schemas.ModeloQuestaoCreate, db: Session) -> models.ModeloQuestao:
-    """Cadastra um novo modelo de questão."""
+    """Cadastra um novo modelo de questão (com imagens de alternativas, se houver)."""
     modelo = models.ModeloQuestao(
         modelo_texto  = dados.modelo_texto,
         gabarito      = dados.gabarito,
-        distradores   = dados.distradores,
+        distradores   = [],
         variaveis     = dados.variaveis,
         nivel         = dados.nivel,
         serie         = dados.serie,
@@ -197,6 +313,13 @@ def criar_modelo(dados: schemas.ModeloQuestaoCreate, db: Session) -> models.Mode
         dificuldade   = dados.dificuldade,
     )
     db.add(modelo)
+    db.flush()  # obtém o id para nomear as imagens
+
+    img_en, gab_img, distradores = _processar_imagens_modelo(dados, modelo.id)
+    modelo.imagem_url = img_en
+    modelo.gabarito_imagem_url = gab_img
+    modelo.distradores = distradores
+
     db.commit()
     db.refresh(modelo)
     return modelo
@@ -218,6 +341,36 @@ def listar_modelos(
     return query.order_by(models.ModeloQuestao.id).all()
 
 
+def atualizar_modelo(
+    modelo_id: int,
+    dados: schemas.ModeloQuestaoCreate,
+    db: Session,
+) -> models.ModeloQuestao:
+    """Edita um modelo de questão (substituição completa dos campos)."""
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+
+    modelo.modelo_texto  = dados.modelo_texto
+    modelo.gabarito      = dados.gabarito
+    modelo.variaveis     = dados.variaveis
+    modelo.nivel         = dados.nivel
+    modelo.serie         = dados.serie
+    modelo.componente_id = dados.componente_id
+    modelo.dificuldade   = dados.dificuldade
+
+    img_en, gab_img, distradores = _processar_imagens_modelo(dados, modelo.id)
+    modelo.imagem_url = img_en
+    modelo.gabarito_imagem_url = gab_img
+    modelo.distradores = distradores
+
+    db.commit()
+    db.refresh(modelo)
+    return modelo
+
+
 def deletar_modelo(modelo_id: int, db: Session) -> None:
     modelo = db.query(models.ModeloQuestao).filter(
         models.ModeloQuestao.id == modelo_id
@@ -225,6 +378,17 @@ def deletar_modelo(modelo_id: int, db: Session) -> None:
     if not modelo:
         raise HTTPException(status_code=404, detail="Modelo não encontrado.")
     db.delete(modelo)
+    db.commit()
+
+
+def remover_imagem_modelo(modelo_id: int, db: Session) -> None:
+    """Remove a imagem associada a um modelo (zera imagem_url)."""
+    modelo = db.query(models.ModeloQuestao).filter(
+        models.ModeloQuestao.id == modelo_id
+    ).first()
+    if not modelo:
+        raise HTTPException(status_code=404, detail="Modelo não encontrado.")
+    modelo.imagem_url = None
     db.commit()
 
 def fazer_upload_imagem_modelo(modelo_id: int, arquivo, db: Session) -> str:

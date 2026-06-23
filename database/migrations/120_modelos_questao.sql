@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS modelos_questao (
     distradores JSON,
     variaveis JSON,
     imagem_url VARCHAR(500),
+    gabarito_imagem_url VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -21,3 +22,4 @@ ALTER TABLE modelos_questao ADD COLUMN IF NOT EXISTS gabarito TEXT;
 ALTER TABLE modelos_questao ADD COLUMN IF NOT EXISTS distradores JSON;
 ALTER TABLE modelos_questao ADD COLUMN IF NOT EXISTS variaveis JSON;
 ALTER TABLE modelos_questao ADD COLUMN IF NOT EXISTS imagem_url VARCHAR(500);
+ALTER TABLE modelos_questao ADD COLUMN IF NOT EXISTS gabarito_imagem_url VARCHAR(500);

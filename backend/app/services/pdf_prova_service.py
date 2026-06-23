@@ -6,6 +6,7 @@ import logging
 import tempfile
 import urllib.request
 import glob
+from PIL import Image as PILImage
 from datetime import datetime, timezone
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -295,38 +296,24 @@ def gerar_pdf_prova_aluno(
     story.append(Spacer(1, 16))
 
     # Questões
-    arquivos_tmp_imagem = []  # rastrear para limpeza após build
-
     for idx, questao in enumerate(questoes_ordenadas, start=1):
         logging.debug("Questão %s | id=%s | enunciado=%s", idx, questao.id, (questao.enunciado or "")[:50])
 
         story.append(Paragraph(f"Questão {idx}", estilos["numero_questao"]))
 
-        # Imagem da questão (se houver)
+        # Imagem da questão (se houver) — processada 100% em memória: cada RLImage
+        # recebe sua própria cópia (BytesIO), evitando confusão de arquivo temporário.
         if questao.imagem_url:
-            tmp_img_path = None
             try:
-                suffix = ".jpg" if "jpg" in questao.imagem_url.lower() else ".png"
-                with tempfile.NamedTemporaryFile(
-                    suffix=suffix, delete=False
-                ) as tmp_img:
-                    tmp_img_path = tmp_img.name
-
-                with open(tmp_img_path, "wb") as _f:
-                    _f.write(baixar_objeto(questao.imagem_url))
-                arquivos_tmp_imagem.append(tmp_img_path)
-
-                from PIL import Image as PILImage
-                with PILImage.open(tmp_img_path) as pil_img:
+                raw = baixar_objeto(questao.imagem_url)
+                with PILImage.open(io.BytesIO(raw)) as pil_img:
                     orig_w, orig_h = pil_img.size
 
                 max_w = 12 * cm
                 max_h = 8 * cm
                 ratio = min(max_w / orig_w, max_h / orig_h)
-                draw_w = orig_w * ratio
-                draw_h = orig_h * ratio
 
-                img = RLImage(tmp_img_path, width=draw_w, height=draw_h)
+                img = RLImage(io.BytesIO(raw), width=orig_w * ratio, height=orig_h * ratio)
                 img_table = Table(
                     [[img]],
                     colWidths=[PAGE_W - 5 * cm],
@@ -340,11 +327,6 @@ def gerar_pdf_prova_aluno(
 
             except Exception as img_err:
                 logging.warning("Erro ao carregar imagem da questão %s: %s", questao.id, img_err)
-                if tmp_img_path and os.path.exists(tmp_img_path):
-                    try:
-                        os.unlink(tmp_img_path)
-                    except Exception:
-                        pass
 
         # Enunciado (apenas uma vez)
         story.append(Paragraph(questao.enunciado, estilos["enunciado"]))
@@ -354,19 +336,11 @@ def gerar_pdf_prova_aluno(
         for i, alt in enumerate(alts):
             letra = LETRAS[i] if i < len(LETRAS) else str(i + 1)
 
-            # Imagem da alternativa (se houver)
+            # Imagem da alternativa (se houver) — também em memória.
             if alt.imagem_url:
-                tmp_alt_path = None
                 try:
-                    suffix = ".jpg" if "jpg" in alt.imagem_url.lower() else ".png"
-                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_alt:
-                        tmp_alt_path = tmp_alt.name
-                    with open(tmp_alt_path, "wb") as _f:
-                        _f.write(baixar_objeto(alt.imagem_url))
-                    arquivos_tmp_imagem.append(tmp_alt_path)
-
-                    from PIL import Image as PILImage
-                    with PILImage.open(tmp_alt_path) as pil_alt:
+                    raw = baixar_objeto(alt.imagem_url)
+                    with PILImage.open(io.BytesIO(raw)) as pil_alt:
                         orig_w, orig_h = pil_alt.size
 
                     # Alternativas ficam menores que o enunciado
@@ -376,7 +350,7 @@ def gerar_pdf_prova_aluno(
                     draw_w = orig_w * ratio
                     draw_h = orig_h * ratio
 
-                    alt_img = RLImage(tmp_alt_path, width=draw_w, height=draw_h)
+                    alt_img = RLImage(io.BytesIO(raw), width=draw_w, height=draw_h)
 
                     # Linha com letra + imagem lado a lado
                     alt_table = Table(
@@ -404,11 +378,6 @@ def gerar_pdf_prova_aluno(
                         f"( {letra} )&nbsp;&nbsp;{alt.texto or '[imagem indisponível]'}",
                         estilos["alternativa"],
                     ))
-                    if tmp_alt_path and os.path.exists(tmp_alt_path):
-                        try:
-                            os.unlink(tmp_alt_path)
-                        except Exception:
-                            pass
             else:
                 # Sem imagem
                 story.append(Paragraph(
@@ -434,16 +403,8 @@ def gerar_pdf_prova_aluno(
         estilos["rodape"],
     ))
 
-    # Build do PDF
+    # Build do PDF (imagens já estão todas em memória — sem arquivos temporários).
     doc.build(story, onFirstPage=_borda_prova, onLaterPages=_borda_prova)
-
-    # Limpeza dos arquivos temporários de imagem APÓS o build
-    for tmp_path in arquivos_tmp_imagem:
-        try:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-        except Exception:
-            pass
 
     return buf.getvalue()
 
