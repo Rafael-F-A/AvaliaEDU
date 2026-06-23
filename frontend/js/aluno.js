@@ -1151,8 +1151,10 @@ function renderQuestaoExam() {
     subWrap.style.display = 'none';
 
     const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+    // Renderiza na ordem recebida do backend (embaralhada por tentativa). NÃO
+    // reordenar por `alt.ordem`: isso desfazia o embaralhamento e deixava a
+    // alternativa correta sempre na posição original em que foi cadastrada.
     altDiv.innerHTML = q.alternativas
-      .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
       .map((alt, i) => {
         const ativa = altSalva === alt.id ? 'alt-selecionada' : '';
         return `
@@ -2063,9 +2065,8 @@ function narrarQuestaoAtual() {
   if (q.imagem_url) trechos.push('Esta questão tem uma imagem.');
 
   const letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+  // Mesma ordem exibida na tela (ordem do backend, embaralhada por tentativa).
   (q.alternativas || [])
-    .slice()
-    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
     .forEach((alt, i) => {
       const letra = letras[i] || (i + 1);
       const txt = (alt.texto || '').trim();

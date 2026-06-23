@@ -208,7 +208,9 @@ class AlternativaResponse(BaseModel):
 class AlternativaPublica(BaseModel):
     id: int
     texto: str
-    ordem: Optional[int] = None
+    # NÃO expor `ordem` (a posição de autoria): o aluno recebe as alternativas já
+    # embaralhadas por tentativa, e o campo `ordem` permitia ao front reordenar e
+    # desfazer o embaralhamento, fixando a alternativa correta na posição original.
     imagem_url: Optional[str] = None
 
     @field_serializer('imagem_url')
