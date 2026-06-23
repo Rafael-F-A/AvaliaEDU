@@ -152,11 +152,20 @@ def gerar_questoes_para_prova(
             ),
         )
 
-    # Permite repetir modelos se há menos modelos do que questões pedidas
+    # Sem repetição: cada questão vem de um modelo DISTINTO (evita duplicar
+    # enunciado/imagem). Se foram pedidas mais questões do que há modelos,
+    # gera o máximo possível e devolve um aviso.
+    n_gerar = min(quantidade, len(modelos_disponiveis))
+    modelos_selecionados = random.sample(modelos_disponiveis, k=n_gerar)
+
+    aviso = None
     if quantidade > len(modelos_disponiveis):
-        modelos_selecionados = random.choices(modelos_disponiveis, k=quantidade)
-    else:
-        modelos_selecionados = random.sample(modelos_disponiveis, k=quantidade)
+        aviso = (
+            f"Você pediu {quantidade} questões, mas só há "
+            f"{len(modelos_disponiveis)} modelo(s) para os filtros. "
+            f"Foram geradas {len(modelos_disponiveis)} (sem repetir modelos). "
+            "Cadastre mais modelos para gerar mais questões distintas."
+        )
 
     geradas = []
     erros   = []
@@ -180,6 +189,7 @@ def gerar_questoes_para_prova(
         "quantidade_erros"  : len(erros),
         "erros"             : erros,
         "questoes"          : geradas,
+        "aviso"             : aviso,
     }
 
 # CRUD de modelos (admin)

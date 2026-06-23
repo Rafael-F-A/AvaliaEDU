@@ -793,7 +793,7 @@
       <div class="form-group" style="margin-top:4px;">
         <label class="form-label">Componentes curriculares</label>
         <p style="font-size:12px; color:var(--c-text-muted); margin:0 0 8px;">
-          Disciplinas avaliadas por esta prova (US37). O vínculo é salvo na hora — não precisa clicar em "Salvar prova".
+          Disciplinas avaliadas por esta prova (US37). Em prova nova, são salvas ao clicar em "Salvar prova"; em prova já existente, o vínculo é salvo na hora.
         </p>
         <div class="input-search" style="margin-bottom:8px;">
           <span class="input-search-icon">🔍</span>
@@ -886,11 +886,25 @@
       <input type="hidden" id="gerar-prova-id">
       <p class="card-subtitle" style="margin-bottom:20px;">
         As questões são geradas a partir dos modelos cadastrados em
-        <strong>Modelos de questão</strong>. O nível é herdado automaticamente da prova.
+        <strong>Modelos de questão</strong>, sem repetir o mesmo modelo. Cada questão
+        vem de um modelo distinto.
       </p>
       <div class="form-group" style="margin-bottom:20px;">
         <label class="form-label required" for="gerar-quantidade">Quantidade de questões</label>
         <input class="form-input" type="number" id="gerar-quantidade" min="1" value="10">
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label" for="gerar-nivel">Nível</label>
+        <div class="form-select-wrap">
+          <select class="form-select" id="gerar-nivel">
+            <option value="">Herdar o nível da prova</option>
+            <option value="FUNDAMENTAL_I">Fundamental I</option>
+            <option value="FUNDAMENTAL_II">Fundamental II</option>
+            <option value="MEDIO">Médio</option>
+            <option value="ENEM">ENEM</option>
+            <option value="EJA">EJA</option>
+          </select>
+        </div>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div class="form-group">

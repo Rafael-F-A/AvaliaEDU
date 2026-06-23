@@ -447,6 +447,7 @@ class ModeloQuestaoResponse(BaseModel):
     serie: Optional[str] = None
     componente_id: Optional[int] = None
     dificuldade: str
+    imagem_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -467,6 +468,7 @@ class GerarQuestoesResponse(BaseModel):
     quantidade_erros: int
     erros: list[dict]
     questoes: list[QuestaoResponse]
+    aviso: Optional[str] = None
 
     class Config:
         from_attributes = True

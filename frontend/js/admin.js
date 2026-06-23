@@ -41,6 +41,8 @@ let _provas       = [];
 let _usuarios     = [];
 let _locais       = [];
 let _componentes  = [];   // US36 — cache de componentes curriculares
+/** US37 — componentes escolhidos numa prova NOVA (sem id ainda); gravados ao salvar. */
+let _provaComponentesBuffer = new Set();
 let _modelos      = [];   // US11 — cache de modelos de questão
 let _reservas     = [];   // US27 — cache de reservas (visão admin)
 
@@ -272,16 +274,25 @@ async function excluirProva(id) {
    6. MODAL DE PROVA — CRIAR / EDITAR
    ─────────────────────────────────────── */
 
-function abrirModalNovaProva() {
+async function abrirModalNovaProva() {
   _limparFormProva();
   document.getElementById('modal-prova-titulo').textContent = 'Nova prova';
   document.getElementById('prova-id').value = '';
+  _provaComponentesBuffer.clear();
+  // Carrega a lista de componentes para já permitir a seleção (antes de salvar).
+  if (!_componentes.length) {
+    try {
+      const dataComp = await apiFetch('/componentes/');
+      _componentes = Array.isArray(dataComp) ? dataComp : (dataComp?.componentes ?? []);
+    } catch { /* checklist mostrará a mensagem padrão */ }
+  }
   _renderComponentesChecklist();
   openModal('modal-prova');
 }
 
 async function abrirModalEditarProva(id) {
   _limparFormProva();
+  _provaComponentesBuffer.clear();  // não usado em edição (já há prova_id)
   document.getElementById('modal-prova-titulo').textContent = 'Editar prova';
 
   try {
@@ -352,7 +363,15 @@ async function salvarProva() {
       await apiFetch(`/provas/${id}`, { method: 'PUT', body: JSON.stringify(corpo) });
       showToast('Prova atualizada com sucesso!', 'success');
     } else {
-      await apiFetch('/provas', { method: 'POST', body: JSON.stringify(corpo) });
+      const nova = await apiFetch('/provas', { method: 'POST', body: JSON.stringify(corpo) });
+      // US37 — grava os componentes selecionados antes de salvar.
+      if (nova?.id && _provaComponentesBuffer.size) {
+        await Promise.all([..._provaComponentesBuffer].map(cid =>
+          apiFetch(`/componentes/prova/${nova.id}/vincular?comp_id=${cid}`, { method: 'POST' })
+            .catch(() => null)
+        ));
+      }
+      _provaComponentesBuffer.clear();
       showToast('Prova criada! Adicione questões agora.', 'success');
     }
     closeModal('modal-prova');
@@ -379,10 +398,6 @@ function _renderComponentesChecklist(componentesVinculados = []) {
   const container = document.getElementById('prova-componentes-checklist');
   const provaId = document.getElementById('prova-id').value;
 
-  if (!provaId) {
-    container.innerHTML = `<span class="table-empty" style="padding:4px;">Salve a prova para poder vincular componentes.</span>`;
-    return;
-  }
   if (!_componentes.length) {
     container.innerHTML = `<span class="table-empty" style="padding:4px;">Nenhum componente cadastrado ainda.</span>`;
     return;
@@ -391,7 +406,10 @@ function _renderComponentesChecklist(componentesVinculados = []) {
   const busca = document.getElementById('prova-componentes-busca');
   if (busca) busca.value = '';
 
-  const idsVinculados = new Set(componentesVinculados.map(c => c.id));
+  // Em prova nova (sem id) a seleção vem do buffer; em edição, dos vínculos salvos.
+  const idsVinculados = provaId
+    ? new Set(componentesVinculados.map(c => c.id))
+    : new Set(_provaComponentesBuffer);
 
   // Agrupa por nível na ordem pedagógica; dentro do grupo, ordena por nome.
   const ordemNiveis = ['FUNDAMENTAL_I', 'FUNDAMENTAL_II', 'MEDIO', 'ENEM', 'EJA'];
@@ -438,10 +456,15 @@ function _filtrarComponentesProva() {
   });
 }
 
-/** Vincula ou desvincula um componente da prova em edição (US37). Ação imediata. */
+/** Vincula/desvincula um componente. Em prova nova (sem id), guarda no buffer
+ *  e persiste ao salvar; em prova existente, grava na hora (US37). */
 async function toggleComponenteProva(compId, vincular) {
   const provaId = document.getElementById('prova-id').value;
-  if (!provaId) return;
+  if (!provaId) {
+    if (vincular) _provaComponentesBuffer.add(compId);
+    else _provaComponentesBuffer.delete(compId);
+    return;
+  }
 
   try {
     await apiFetch(`/componentes/prova/${provaId}/vincular?comp_id=${compId}`, {
@@ -1049,6 +1072,8 @@ function abrirModalGerarQuestoes() {
   document.getElementById('gerar-prova-id').value    = _provaAtiva.id;
   document.getElementById('gerar-quantidade').value  = 10;
   document.getElementById('gerar-dificuldade').value = '';
+  const selNivel = document.getElementById('gerar-nivel');
+  if (selNivel) selNivel.value = '';
   carregarComponentesSelect('gerar-componente', null, 'Qualquer componente');
   openModal('modal-gerar-questoes');
 }
@@ -1061,6 +1086,7 @@ function abrirModalGerarQuestoes() {
 async function gerarQuestoesAutomaticamente() {
   const provaId      = document.getElementById('gerar-prova-id').value;
   const quantidade   = _parseNum('gerar-quantidade');
+  const nivel        = document.getElementById('gerar-nivel')?.value || null;
   const dificuldade  = document.getElementById('gerar-dificuldade').value || null;
   const componenteId = document.getElementById('gerar-componente').value || null;
 
@@ -1071,6 +1097,7 @@ async function gerarQuestoesAutomaticamente() {
 
   const corpo = {
     quantidade,
+    nivel,
     dificuldade,
     componente_id: componenteId ? Number(componenteId) : null,
   };
@@ -1083,7 +1110,9 @@ async function gerarQuestoesAutomaticamente() {
     });
     closeModal('modal-gerar-questoes');
 
-    if (res.quantidade_erros > 0) {
+    if (res.aviso) {
+      showToast(res.aviso, 'warning', 7000);
+    } else if (res.quantidade_erros > 0) {
       showToast(
         `${res.quantidade_gerada} questões geradas, ${res.quantidade_erros} falharam.`,
         'warning', 5000
