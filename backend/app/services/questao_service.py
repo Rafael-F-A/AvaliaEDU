@@ -167,6 +167,14 @@ def listar_questoes(db: Session, prova_id: Optional[int] = None) -> list:
     return query.order_by(models.Questao.ordem).all()
 
 
+def buscar_questao(questao_id: int, db: Session) -> models.Questao:
+    """Retorna uma questão (com alternativas) por id — usado ao abrir o modal de edição."""
+    questao = db.query(models.Questao).filter(models.Questao.id == questao_id).first()
+    if not questao:
+        raise HTTPException(status_code=404, detail="Questão não encontrada.")
+    return questao
+
+
 def editar_questao(questao_id: int, dados: schemas.QuestaoCreate, db: Session) -> models.Questao:
     _validar_alternativas(dados.alternativas)
 
