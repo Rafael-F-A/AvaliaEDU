@@ -780,12 +780,12 @@ async function confirmarInicioProva() {
         elNecRow.style.display   = 'none';
       }
 
-      // Ir para passo do comprovante
+      // Ir para passo do comprovante. A prova presencial NÃO é iniciada pelo app:
+      // é aplicada no local pelo aplicador (PDF gerado pelo admin). Por isso o
+      // comprovante não oferece "Iniciar prova" — só o código da reserva.
       _modalidadeMostrarPasso('comprovante');
       if (btn) { btn.disabled = false; btn.textContent = 'Confirmar e reservar vaga'; }
       document.getElementById('btn-cancelar-modalidade').textContent = 'Fechar';
-      const btnIniciar = document.getElementById('btn-iniciar-apos-reserva');
-      if (btnIniciar) btnIniciar.style.display = '';
 
     } else {
       // Online → inicia diretamente
@@ -808,23 +808,7 @@ async function confirmarInicioProva() {
   }
 }
 
-/** Chamado pelo botão "Iniciar prova agora →" após exibir o comprovante. */
-async function iniciarProvaAposReserva() {
-  const { provaId, tipo, escolha, localSelecionado } = modalidade;
-  const btn = document.getElementById('btn-iniciar-apos-reserva');
-  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
-
-  try {
-    await _iniciarProva(provaId, tipo, escolha);
-    closeModal('modal-modalidade');
-    showToast(`Vaga reservada em ${localSelecionado?.nome || 'local selecionado'}. Boa prova!`, 'success', 4000);
-  } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Iniciar prova agora →'; }
-    showToast(err.message || 'Não foi possível iniciar a prova.', 'danger');
-  }
-}
-
-/** Lógica de início de prova compartilhada entre online e presencial. */
+/** Lógica de início de prova ONLINE (a presencial é aplicada no local, não pelo app). */
 async function _iniciarProva(provaId, tipo, escolha) {
   setLoading(true);
   try {

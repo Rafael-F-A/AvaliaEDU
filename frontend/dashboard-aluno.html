@@ -976,15 +976,20 @@
           <strong id="comprovante-necessidades">—</strong>
         </div>
       </div>
+
+      <div style="margin-top:16px; background:var(--c-bg); border:1px solid var(--c-border);
+           border-left:3px solid var(--c-primary); border-radius:10px;
+           padding:12px 16px; font-size:13px; color:var(--c-text); line-height:1.5;">
+        📍 <strong>Prova presencial.</strong> Compareça ao local na data e horário agendados —
+        a prova será aplicada <strong>presencialmente</strong> pelo aplicador. Ela não é
+        realizada pelo aplicativo.
+      </div>
     </div>
 
     <div class="modal-footer" id="modal-modalidade-footer">
       <button class="btn btn-ghost" id="btn-cancelar-modalidade" data-close-modal="modal-modalidade">Cancelar</button>
       <button class="btn btn-primary" id="btn-confirmar-modalidade" onclick="confirmarInicioProva()" style="display:none;">
         Confirmar e reservar vaga
-      </button>
-      <button class="btn btn-primary" id="btn-iniciar-apos-reserva" onclick="iniciarProvaAposReserva()" style="display:none;">
-        Iniciar prova agora →
       </button>
     </div>
   </div>
