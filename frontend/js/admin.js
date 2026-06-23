@@ -73,10 +73,36 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!usuario) return;
 
   initUI(usuario);
+  preencherIdentidadeAdmin(usuario);
   configurarNavegacao();
   configurarFiltros();
   carregarDashboard();
 });
+
+/**
+ * Preenche a identidade do admin: iniciais em TODOS os avatares (.user-avatar,
+ * vários sem id espalhados pelas seções) e os dados da "Minha área", a partir do
+ * objeto já salvo no localStorage. Espelha preencherIdentidade() do aluno — sem
+ * isso, os avatares fora do dashboard ficavam mostrando "?". Clicar no avatar
+ * leva à "Minha área".
+ */
+function preencherIdentidadeAdmin(u) {
+  if (!u) return;
+  const ini = iniciais(u.nome);
+  document.querySelectorAll('.user-avatar').forEach(el => {
+    el.textContent = ini;
+    el.style.cursor = 'pointer';
+    el.title = 'Minha área';
+    el.onclick = () => irPara('minha-area');
+  });
+
+  const nomeEl = document.getElementById('area-nome');
+  if (nomeEl) nomeEl.textContent = u.nome || u.email || '—';
+  const emailEl = document.getElementById('area-email');
+  if (emailEl) emailEl.value = u.email || '';
+  const perfilEl = document.getElementById('area-perfil');
+  if (perfilEl) perfilEl.textContent = u.perfil === 'ADMIN' ? 'Administrador' : (u.perfil || '');
+}
 
 /* ─────────────────────────────────────────
    3. NAVEGAÇÃO ENTRE SEÇÕES
@@ -222,7 +248,8 @@ function _renderProvas(lista) {
             ? `<button class="btn btn-secondary btn-sm" onclick="publicarProva(${p.id})">Publicar</button>`
             : ''}
           ${p.status === 'PUBLICADA'
-            ? `<button class="btn btn-ghost btn-sm" onclick="abrirModalExportarPDF(${p.id}, '${_esc(p.titulo)}')">📄 Gerar PDFs</button>`
+            ? `<button class="btn btn-ghost btn-sm" onclick="abrirModalExportarPDF(${p.id}, '${_esc(p.titulo)}')">📄 Gerar PDFs</button>
+               <button class="btn btn-secondary btn-sm" onclick="rascunhoProva(${p.id})" title="Voltar para rascunho e liberar a edição das questões">↩ Rascunho</button>`
             : ''}
           <button class="btn btn-ghost btn-sm" onclick="abrirModalEditarProva(${p.id})">Editar</button>
           <button class="btn btn-danger btn-sm" onclick="confirmarExclusao(
@@ -257,6 +284,16 @@ async function publicarProva(id) {
     carregarProvas();
   } catch (err) {
     showToast(err.message || 'Erro ao publicar prova.', 'danger');
+  }
+}
+
+async function rascunhoProva(id) {
+  try {
+    await apiFetch(`/provas/${id}/rascunho`, { method: 'PATCH' });
+    showToast('Prova voltou para rascunho. Agora você pode editar as questões.', 'success');
+    carregarProvas();
+  } catch (err) {
+    showToast(err.message || 'Erro ao voltar para rascunho.', 'danger');
   }
 }
 

@@ -645,6 +645,7 @@ const API = {
     buscar:      (id) => `/provas/${id}`,
     editar:      (id) => `/provas/${id}`,
     publicar:    (id) => `/provas/${id}/publicar`,
+    rascunho:    (id) => `/provas/${id}/rascunho`,   // PUBLICADA → RASCUNHO (reabre p/ edição)
     deletar:     (id) => `/provas/${id}`,
     disponiveis: '/provas/disponiveis',    // provas publicadas p/ o aluno (US14)
   },

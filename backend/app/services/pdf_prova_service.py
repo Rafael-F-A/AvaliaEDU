@@ -21,10 +21,9 @@ from reportlab.platypus import (
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from app.utils.storage import baixar_objeto
+from app.utils.storage import baixar_objeto, upload_prova
 
 from app import models
-from app.utils.storage import upload_certificado
 
 # Constantes de cor
 AZUL_SEED    = colors.HexColor("#0B57C5")
@@ -53,6 +52,44 @@ TIPO_LABELS = {
     "SIMULADO":     "Simulado",
     "CERTIFICACAO": "Certificação",
 }
+
+# Reamostragem de melhor qualidade ao reduzir imagens (o enum mudou de lugar
+# entre versões do Pillow).
+try:
+    _RESAMPLE = PILImage.Resampling.LANCZOS
+except AttributeError:  # Pillow < 9.1
+    _RESAMPLE = PILImage.LANCZOS
+
+
+def _imagem_para_pdf(raw: bytes, max_dim: int, quality: int = 75):
+    """Reduz a imagem para embutir no PDF e a recodifica como JPEG em memória.
+
+    As imagens de questões/alternativas vêm em resolução original (fotos de
+    1500px+), o que inflava o PDF a ponto de estourar o limite do bucket. Aqui o
+    lado maior é limitado a ``max_dim`` (só reduz, nunca amplia) e a imagem é
+    salva como JPEG (qualidade ``quality``), cortando o tamanho em ~10x.
+
+    Devolve ``(BytesIO_JPEG, largura_px, altura_px)`` — a razão de aspecto é
+    preservada, então o cálculo de exibição continua válido.
+    """
+    with PILImage.open(io.BytesIO(raw)) as im:
+        # JPEG não tem canal alfa: achata transparência sobre fundo branco.
+        if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
+            base = im.convert("RGBA")
+            fundo = PILImage.new("RGB", base.size, (255, 255, 255))
+            fundo.paste(base, mask=base.split()[-1])
+            im = fundo
+        elif im.mode != "RGB":
+            im = im.convert("RGB")
+
+        im.thumbnail((max_dim, max_dim), _RESAMPLE)
+        largura, altura = im.size
+
+        out = io.BytesIO()
+        im.save(out, format="JPEG", quality=quality, optimize=True)
+
+    out.seek(0)
+    return out, largura, altura
 
 
 # Estilos
@@ -306,14 +343,13 @@ def gerar_pdf_prova_aluno(
         if questao.imagem_url:
             try:
                 raw = baixar_objeto(questao.imagem_url)
-                with PILImage.open(io.BytesIO(raw)) as pil_img:
-                    orig_w, orig_h = pil_img.size
+                img_buf, orig_w, orig_h = _imagem_para_pdf(raw, max_dim=1000)
 
                 max_w = 12 * cm
                 max_h = 8 * cm
                 ratio = min(max_w / orig_w, max_h / orig_h)
 
-                img = RLImage(io.BytesIO(raw), width=orig_w * ratio, height=orig_h * ratio)
+                img = RLImage(img_buf, width=orig_w * ratio, height=orig_h * ratio)
                 img_table = Table(
                     [[img]],
                     colWidths=[PAGE_W - 5 * cm],
@@ -340,8 +376,8 @@ def gerar_pdf_prova_aluno(
             if alt.imagem_url:
                 try:
                     raw = baixar_objeto(alt.imagem_url)
-                    with PILImage.open(io.BytesIO(raw)) as pil_alt:
-                        orig_w, orig_h = pil_alt.size
+                    # Alternativas exibem pequeno (≤3cm); 600px sobra de resolução.
+                    alt_buf, orig_w, orig_h = _imagem_para_pdf(raw, max_dim=600)
 
                     # Alternativas ficam menores que o enunciado
                     max_w = 3 * cm
@@ -350,7 +386,7 @@ def gerar_pdf_prova_aluno(
                     draw_w = orig_w * ratio
                     draw_h = orig_h * ratio
 
-                    alt_img = RLImage(io.BytesIO(raw), width=draw_w, height=draw_h)
+                    alt_img = RLImage(alt_buf, width=draw_w, height=draw_h)
 
                     # Linha com letra + imagem lado a lado
                     alt_table = Table(
@@ -511,13 +547,17 @@ def exportar_prova_para_alunos(
                 alternativas_por_questao=alts_map,
             )
 
-            nome_arquivo = f"provas/{prova_id}/aluno_{aluno_id}.pdf"
+            # Bucket correto é 'provas' (limite 10 MB, link 24h). Antes ia para
+            # 'certificados' (limite 5 MB, link 1h) -> estourava "Payload too
+            # large" em provas com imagem. Como o destino já é o bucket 'provas',
+            # o caminho interno não repete o prefixo.
+            nome_arquivo = f"{prova_id}/aluno_{aluno_id}.pdf"
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 tmp.write(pdf_bytes)
                 tmp_path = tmp.name
 
             try:
-                url = upload_certificado(tmp_path, nome_arquivo)
+                url = upload_prova(tmp_path, nome_arquivo)
             finally:
                 os.unlink(tmp_path)
 
